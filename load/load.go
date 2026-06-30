@@ -174,58 +174,57 @@ type PatternHeader struct {
 	PackedPatternDataSize uint16
 }
 
-func readPatternHeaderPartial(r io.Reader, fileVersion uint16) (*PatternHeader, error) {
-	ph := PatternHeader{}
+func readPatternHeaderPartial(r io.Reader, fileVersion uint16) (ph *PatternHeader, err error) {
+	ph = &PatternHeader{}
 
-	sz := uint32(0)
-	if err := binary.Read(r, binary.LittleEndian, &ph.PatternHeaderLength); err != nil {
-		return nil, err
+	var sz uint32
+	if err = binary.Read(r, binary.LittleEndian, &ph.PatternHeaderLength); err != nil {
+		return
 	}
 	if sz += 4; sz >= ph.PatternHeaderLength {
-		return &ph, nil
+		return
 	}
 
-	if err := binary.Read(r, binary.LittleEndian, &ph.PackingType); err != nil {
-		return nil, err
+	if err = binary.Read(r, binary.LittleEndian, &ph.PackingType); err != nil {
+		return
 	}
 	if sz++; sz >= ph.PatternHeaderLength {
-		return &ph, nil
+		return
 	}
 
 	if fileVersion == 0x0102 {
 		var rowCount uint8
-		if err := binary.Read(r, binary.LittleEndian, &rowCount); err != nil {
-			return nil, err
+		if err = binary.Read(r, binary.LittleEndian, &rowCount); err != nil {
+			return
 		}
 
 		ph.NumRows = uint16(rowCount) + 1
 		if sz++; sz >= ph.PatternHeaderLength {
-			return &ph, nil
+			return
 		}
 
 	} else {
-		if err := binary.Read(r, binary.LittleEndian, &ph.NumRows); err != nil {
-			return nil, err
+		if err = binary.Read(r, binary.LittleEndian, &ph.NumRows); err != nil {
+			return
 		}
 		if sz += 2; sz >= ph.PatternHeaderLength {
-			return &ph, nil
+			return
 		}
 	}
 
-	if err := binary.Read(r, binary.LittleEndian, &ph.PackedPatternDataSize); err != nil {
-		return nil, err
+	if err = binary.Read(r, binary.LittleEndian, &ph.PackedPatternDataSize); err != nil {
+		return
 	}
 	if sz += 2; sz >= ph.PatternHeaderLength {
-		return &ph, nil
+		return
 	}
 
-	return &ph, nil
+	return
 }
 
-func readPatternHeader(r io.Reader, fileVersion uint16) (*PatternHeader, error) {
-	ph, err := readPatternHeaderPartial(r, fileVersion)
-	if err != nil {
-		return nil, err
+func readPatternHeader(r io.Reader, fileVersion uint16) (ph *PatternHeader, err error) {
+	if ph, err = readPatternHeaderPartial(r, fileVersion); err != nil {
+		return
 	}
 
 	//if ph.NumRows == 0 {
@@ -240,7 +239,7 @@ func readPatternHeader(r io.Reader, fileVersion uint16) (*PatternHeader, error) 
 		return nil, errors.New("pattern row count out of range - possibly corrupt file")
 	}
 
-	return ph, nil
+	return
 }
 
 // ChannelFlags describes what is valid in a channel
@@ -320,7 +319,7 @@ type Pattern struct {
 	Data []PatternRow
 }
 
-func (p *Pattern) unpack(numChannels int) error {
+func (p *Pattern) unpack(numChannels int) (err error) {
 	numRows := int(p.Header.NumRows)
 
 	if len(p.PackedData) == 0 {
@@ -329,7 +328,7 @@ func (p *Pattern) unpack(numChannels int) error {
 		for i := range p.Data {
 			p.Data[i] = make(PatternRow, numChannels)
 		}
-		return nil
+		return
 	}
 
 	// it's not empty, so let's unpack it!
@@ -339,10 +338,10 @@ func (p *Pattern) unpack(numChannels int) error {
 	for i := range p.Data {
 		row := make(PatternRow, numChannels)
 		p.Data[i] = row
-		for c := 0; c < numChannels; c++ {
+		for c := range numChannels {
 			ch := &row[c]
-			if err := binary.Read(packed, binary.LittleEndian, &ch.ChannelFlags); err != nil {
-				return err
+			if err = binary.Read(packed, binary.LittleEndian, &ch.ChannelFlags); err != nil {
+				return
 			}
 
 			// is the first byte a bitfield instead of note?
@@ -350,8 +349,8 @@ func (p *Pattern) unpack(numChannels int) error {
 				// it is!
 				// note present?
 				if ch.HasNote() {
-					if err := binary.Read(packed, binary.LittleEndian, &ch.Note); err != nil {
-						return err
+					if err = binary.Read(packed, binary.LittleEndian, &ch.Note); err != nil {
+						return
 					}
 				}
 			} else {
@@ -362,41 +361,40 @@ func (p *Pattern) unpack(numChannels int) error {
 
 			// instrument present?
 			if ch.HasInstrument() {
-				if err := binary.Read(packed, binary.LittleEndian, &ch.Instrument); err != nil {
-					return err
+				if err = binary.Read(packed, binary.LittleEndian, &ch.Instrument); err != nil {
+					return
 				}
 			}
 
 			// volume present?
 			if ch.HasVolume() {
-				if err := binary.Read(packed, binary.LittleEndian, &ch.Volume); err != nil {
-					return err
+				if err = binary.Read(packed, binary.LittleEndian, &ch.Volume); err != nil {
+					return
 				}
 			}
 
 			// effect present?
 			if ch.HasEffect() {
-				if err := binary.Read(packed, binary.LittleEndian, &ch.Effect); err != nil {
-					return err
+				if err = binary.Read(packed, binary.LittleEndian, &ch.Effect); err != nil {
+					return
 				}
 			}
 
 			// effect parameter present?
 			if ch.HasEffectParameter() {
-				if err := binary.Read(packed, binary.LittleEndian, &ch.EffectParameter); err != nil {
-					return err
+				if err = binary.Read(packed, binary.LittleEndian, &ch.EffectParameter); err != nil {
+					return
 				}
 			}
 		}
 	}
 
-	return nil
+	return
 }
 
 // EnvPoint is a representation of an XM file envelope point
 type EnvPoint struct {
-	X uint16
-	Y uint16
+	X, Y uint16
 }
 
 // EnvelopeFlags is a representation of the XM file instrument envelope flags (vol/pan)
