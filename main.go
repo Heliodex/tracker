@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/Heliodex/tracker/load"
 )
 
 func main() {
@@ -11,7 +13,7 @@ func main() {
 		panic(err)
 	}
 
-	f, err := Read(r)
+	f, err := load.Read(r)
 	if err != nil {
 		panic(err)
 	}
