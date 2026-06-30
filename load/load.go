@@ -10,6 +10,25 @@ import (
 // HeaderFlags is the set of flags for an XM header
 type HeaderFlags uint16
 
+/*
+const (
+	// HeaderFlagLinearSlides activates the linear frequency table (off = Amiga frequency table)
+	HeaderFlagLinearSlides = HeaderFlags(0x0001)
+	// HeaderFlagExtendedFilterRange activates the extended filter range
+	HeaderFlagExtendedFilterRange = HeaderFlags(0x1000)
+)
+
+// IsLinearSlides returns true if the song plays with linear note slides (or if false, with Amiga note slides)
+func (f HeaderFlags) IsLinearSlides() bool {
+	return (f & HeaderFlagLinearSlides) != 0
+}
+
+// IsExtendedFilterRange returns true if the song has extended filter ranges enabled
+func (f HeaderFlags) IsExtendedFilterRange() bool {
+	return (f & HeaderFlagExtendedFilterRange) != 0
+}
+*/
+
 // ModuleHeader is a representation of the XM file header
 type ModuleHeader struct {
 	IDText          [17]uint8
@@ -277,42 +296,12 @@ func (f ChannelFlags) IsValid() bool {
 
 // ChannelData is the XM unpacked pattern channel data definition
 type ChannelData struct {
-	Flags           ChannelFlags
+	ChannelFlags
 	Note            uint8
 	Instrument      uint8
 	Volume          uint8
 	Effect          uint8
 	EffectParameter uint8
-}
-
-// HasNote returns true when the channel includes note data
-func (f ChannelData) HasNote() bool {
-	return f.Flags.HasNote()
-}
-
-// HasInstrument returns true when the channel includes instrument data
-func (f ChannelData) HasInstrument() bool {
-	return f.Flags.HasInstrument()
-}
-
-// HasVolume returns true when the channel includes volume data
-func (f ChannelData) HasVolume() bool {
-	return f.Flags.HasVolume()
-}
-
-// HasEffect returns true when the channel includes effect data
-func (f ChannelData) HasEffect() bool {
-	return f.Flags.HasEffect()
-}
-
-// HasEffectParameter returns true when the channel includes effect parameter data
-func (f ChannelData) HasEffectParameter() bool {
-	return f.Flags.HasEffectParameter()
-}
-
-// IsValid returns true when the channel flags are valid
-func (f ChannelData) IsValid() bool {
-	return f.Flags.IsValid()
 }
 
 // PatternFileFormat is the XM pattern definition in file format
@@ -352,7 +341,7 @@ func (p *Pattern) unpack(numChannels int) error {
 		p.Data[i] = row
 		for c := 0; c < numChannels; c++ {
 			ch := &row[c]
-			if err := binary.Read(packed, binary.LittleEndian, &ch.Flags); err != nil {
+			if err := binary.Read(packed, binary.LittleEndian, &ch.ChannelFlags); err != nil {
 				return err
 			}
 
@@ -367,8 +356,8 @@ func (p *Pattern) unpack(numChannels int) error {
 				}
 			} else {
 				// it isn't... assume it's a note and that we have everything present
-				ch.Note = uint8(ch.Flags)
-				ch.Flags = ChannelFlagsAll
+				ch.Note = uint8(ch.ChannelFlags)
+				ch.ChannelFlags = ChannelFlagsAll
 			}
 
 			// instrument present?
@@ -473,9 +462,9 @@ type InstrumentHeader struct {
 }
 
 func readInstrumentHeaderPartial(r io.Reader) (*InstrumentHeader, error) {
-	ih := InstrumentHeader{}
+	var ih InstrumentHeader
 
-	sz := uint32(0)
+	var sz uint32
 	if err := binary.Read(r, binary.LittleEndian, &ih.Size); err != nil {
 		return nil, err
 	}
@@ -662,7 +651,7 @@ func readInstrumentHeaderPartial(r io.Reader) (*InstrumentHeader, error) {
 }
 
 func convertSample16Bit(data []uint8) {
-	old := int16(0)
+	var old int16
 	for i := 0; i < len(data); i += 2 {
 		s := binary.LittleEndian.Uint16(data[i:])
 		new := int16(s) + old
@@ -672,7 +661,7 @@ func convertSample16Bit(data []uint8) {
 }
 
 func convertSample8Bit(data []uint8) {
-	old := int8(0)
+	var old int8
 	for i, s := range data {
 		new := int8(s) + old
 		data[i] = uint8(new)
@@ -691,7 +680,7 @@ func readInstrumentHeader(r io.Reader) (*InstrumentHeader, error) {
 	}
 
 	for i := uint16(0); i < ih.SamplesCount; i++ {
-		s := SampleHeader{}
+		var s SampleHeader
 
 		if err := binary.Read(r, binary.LittleEndian, &s.Length); err != nil {
 			return nil, err
@@ -772,7 +761,7 @@ func Read(r io.Reader) (*File, error) {
 	}
 
 	for i := uint16(0); i < xmh.NumPatterns; i++ {
-		p := Pattern{}
+		var p Pattern
 
 		ph, err := readPatternHeader(r, xmh.VersionNumber)
 		if err != nil {
