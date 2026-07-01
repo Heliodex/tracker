@@ -105,10 +105,9 @@ func readHeaderPartial(r io.Reader) (xmh *ModuleHeader, err error) {
 	return
 }
 
-func readHeader(r io.Reader) (*ModuleHeader, error) {
-	xmh, err := readHeaderPartial(r)
-	if err != nil {
-		return nil, err
+func readHeader(r io.Reader) (xmh *ModuleHeader, err error) {
+	if xmh, err = readHeaderPartial(r); err != nil {
+		return
 	}
 
 	if xmh.NumChannels < 1 || xmh.NumChannels > 32 {
@@ -123,7 +122,7 @@ func readHeader(r io.Reader) (*ModuleHeader, error) {
 		return nil, errors.New("invalid number of instruments - possibly corrupt file")
 	}
 
-	return xmh, nil
+	return
 }
 
 func readPatternHeaderPartial(r io.Reader, fileVersion uint16) (ph *PatternHeader, err error) {
