@@ -301,12 +301,16 @@ type SampleHeader struct {
 	SampleData []uint8
 }
 
-// InstrumentHeader is a representation of the XM file instrument header
-type InstrumentHeader struct {
+type InstrumentHeader1 struct {
 	Size         uint32
 	Name         [22]uint8
 	Type         uint8
 	SamplesCount uint16
+}
+
+// InstrumentHeader is a representation of the XM file instrument header
+type InstrumentHeader struct {
+	InstrumentHeader1
 
 	SampleHeaderSize uint32
 	SampleNumber     [96]uint8
