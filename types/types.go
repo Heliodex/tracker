@@ -203,6 +203,61 @@ func (p *Pattern) Unpack(numChannels int, pd []byte) (err error) {
 	return
 }
 
+// Pack converts the unpacked pattern data back to packed format
+func (p *Pattern) Pack(numChannels int) ([]byte, error) {
+	var buf bytes.Buffer
+	numRows := int(p.Header.NumRows)
+
+	for i := range numRows {
+		row := p.Data[i]
+		for c := range numChannels {
+			ch := &row[c]
+
+			// write channel flags
+			if err := binary.Write(&buf, binary.LittleEndian, ch.ChannelFlags); err != nil {
+				return nil, err
+			}
+
+			// note present?
+			if ch.HasNote() {
+				if err := binary.Write(&buf, binary.LittleEndian, ch.Note); err != nil {
+					return nil, err
+				}
+			}
+
+			// instrument present?
+			if ch.HasInstrument() {
+				if err := binary.Write(&buf, binary.LittleEndian, ch.Instrument); err != nil {
+					return nil, err
+				}
+			}
+
+			// volume present?
+			if ch.HasVolume() {
+				if err := binary.Write(&buf, binary.LittleEndian, ch.Volume); err != nil {
+					return nil, err
+				}
+			}
+
+			// effect present?
+			if ch.HasEffect() {
+				if err := binary.Write(&buf, binary.LittleEndian, ch.Effect); err != nil {
+					return nil, err
+				}
+			}
+
+			// effect parameter present?
+			if ch.HasEffectParameter() {
+				if err := binary.Write(&buf, binary.LittleEndian, ch.EffectParameter); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
 // EnvPoint is a representation of an XM file envelope point
 type EnvPoint struct {
 	X, Y uint16
