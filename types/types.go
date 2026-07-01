@@ -27,14 +27,18 @@ func (f HeaderFlags) IsExtendedFilterRange() bool {
 }
 */
 
-// ModuleHeader is a representation of the XM file header
-type ModuleHeader struct {
+type ModuleHeader1 struct {
 	IDText        [17]uint8
 	Name          [20]uint8
 	Reserved1A    uint8
 	TrackerName   [20]uint8
 	VersionNumber uint16
-	HeaderSize    uint32
+}
+
+// ModuleHeader is a representation of the XM file header
+type ModuleHeader struct {
+	ModuleHeader1
+	HeaderSize uint32
 	SongLength,
 	RestartPosition,
 	NumChannels,
@@ -278,8 +282,7 @@ const (
 	SampleFlagStereo = SampleFlags(0x20)
 )
 
-// SampleHeader is a representation of the XM file sample header
-type SampleHeader struct {
+type SampleHeader1 struct {
 	Length,
 	LoopStart,
 	LoopLength uint32
@@ -290,7 +293,12 @@ type SampleHeader struct {
 	RelativeNoteNumber int8
 	ReservedP17        uint8
 	Name               [22]uint8
-	SampleData         []uint8
+}
+
+// SampleHeader is a representation of the XM file sample header
+type SampleHeader struct {
+	SampleHeader1
+	SampleData []uint8
 }
 
 // InstrumentHeader is a representation of the XM file instrument header
