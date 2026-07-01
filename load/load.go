@@ -31,7 +31,7 @@ func readHeaderPartial(r io.Reader) (xmh *ModuleHeader, err error) {
 		return
 	}
 
-	var sz uint32
+	sz := uint32(0)
 	if err = binary.Read(r, binary.LittleEndian, &xmh.HeaderSize); err != nil {
 		return
 	}
@@ -105,9 +105,10 @@ func readHeaderPartial(r io.Reader) (xmh *ModuleHeader, err error) {
 	return
 }
 
-func readHeader(r io.Reader) (xmh *ModuleHeader, err error) {
-	if xmh, err = readHeaderPartial(r); err != nil {
-		return
+func readHeader(r io.Reader) (*ModuleHeader, error) {
+	xmh, err := readHeaderPartial(r)
+	if err != nil {
+		return nil, err
 	}
 
 	if xmh.NumChannels < 1 || xmh.NumChannels > 32 {
@@ -122,7 +123,7 @@ func readHeader(r io.Reader) (xmh *ModuleHeader, err error) {
 		return nil, errors.New("invalid number of instruments - possibly corrupt file")
 	}
 
-	return
+	return xmh, nil
 }
 
 func readPatternHeaderPartial(r io.Reader, fileVersion uint16) (ph *PatternHeader, err error) {
@@ -499,6 +500,7 @@ func Read(r io.Reader) (f *File, err error) {
 		if err = binary.Read(r, binary.LittleEndian, &ppd); err != nil {
 			return
 		}
+		// p.PackedData = ppd
 
 		if err = p.Unpack(int(xmh.NumChannels), ppd); err != nil {
 			return

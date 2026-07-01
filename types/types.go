@@ -100,10 +100,10 @@ func (f ChannelFlags) IsValid() bool {
 // ChannelData is the XM unpacked pattern channel data definition
 type ChannelData struct {
 	ChannelFlags
-	Note            uint8
-	Instrument      uint8
-	Volume          uint8
-	Effect          uint8
+	Note,
+	Instrument,
+	Volume,
+	Effect,
 	EffectParameter uint8
 }
 
@@ -225,9 +225,9 @@ const (
 
 // SampleHeader is a representation of the XM file sample header
 type SampleHeader struct {
-	Length             uint32
-	LoopStart          uint32
-	LoopLength         uint32
+	Length,
+	LoopStart,
+	LoopLength uint32
 	Volume             uint8
 	Finetune           int8
 	Flags              SampleFlags
@@ -247,25 +247,25 @@ type InstrumentHeader struct {
 
 	SampleHeaderSize uint32
 	SampleNumber     [96]uint8
-	VolEnv           [12]EnvPoint
-	PanEnv           [12]EnvPoint
+	VolEnv,
+	PanEnv [12]EnvPoint
 
-	VolPoints         uint8
-	PanPoints         uint8
-	VolSustainPoint   uint8
-	VolLoopStartPoint uint8
-	VolLoopEndPoint   uint8
-	PanSustainPoint   uint8
-	PanLoopStartPoint uint8
-	PanLoopEndPoint   uint8
-	VolFlags          EnvelopeFlags
-	PanFlags          EnvelopeFlags
-	VibratoType       uint8
-	VibratoSweep      uint8
-	VibratoDepth      uint8
-	VibratoRate       uint8
-	VolumeFadeout     uint16
-	ReservedP241      [11]uint16
+	VolPoints uint8
+	PanPoints,
+	VolSustainPoint,
+	VolLoopStartPoint,
+	VolLoopEndPoint,
+	PanSustainPoint,
+	PanLoopStartPoint,
+	PanLoopEndPoint uint8
+	VolFlags,
+	PanFlags EnvelopeFlags
+	VibratoType,
+	VibratoSweep,
+	VibratoDepth,
+	VibratoRate uint8
+	VolumeFadeout uint16
+	ReservedP241  [11]uint16
 
 	Samples []SampleHeader
 }
