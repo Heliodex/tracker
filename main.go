@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/Heliodex/tracker/load"
@@ -11,21 +10,12 @@ import (
 )
 
 func main() {
-	r, err := os.Open("./track.xm")
+	content1, err := os.ReadFile("./track.xm")
 	if err != nil {
 		panic(err)
 	}
 
-	f, err := load.Read(r)
-	if err != nil {
-		panic(err)
-	}
-
-	if _, err = r.Seek(0, 0); err != nil {
-		panic(err)
-	}
-
-	content1, err := io.ReadAll(r)
+	f, err := load.Read(bytes.NewBuffer(content1))
 	if err != nil {
 		panic(err)
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 
 	. "github.com/Heliodex/tracker/types"
 )
@@ -356,22 +355,18 @@ func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 
 		// unconvert the sample in the background
 		if (s.Flags & SampleFlag16Bit) != 0 {
-			fmt.Println("writing4", w.Len())
 			sd = UnconvertSample16Bit(s.SampleData)
 		} else {
-			fmt.Println("writing5", w.Len())
 			sd = UnconvertSample8Bit(s.SampleData)
 		}
+		// fmt.Println("writing4", w.Len(), len(sd))
 
-		for _, b := range sd {
-			if err = binary.Write(w, binary.LittleEndian, b); err != nil {
-				return
-			}
+		if _, err = w.Write(sd); err != nil {
+			return
 		}
-		fmt.Println()
 	}
 
-	return writeInstrumentHeaderPartial(w, ih)
+	return // HOURS tracking down this bug because I accidentally wrote the instrument header twice
 }
 
 // Write writes an XM file from the File `f` to the writer `w`
@@ -383,6 +378,8 @@ func Write(w *bytes.Buffer, f *File) (err error) {
 	if err = writeHeader(w, &f.Head); err != nil {
 		return
 	}
+
+	// fmt.Println("writing0", w.Len())
 
 	for _, p := range f.Patterns {
 		if err = writePatternHeader(w, &p.Header); err != nil {
@@ -398,7 +395,7 @@ func Write(w *bytes.Buffer, f *File) (err error) {
 		}
 	}
 
-	fmt.Println("writing1", w.Len())
+	// fmt.Println("writing1", w.Len())
 
 	for _, ih := range f.Instruments {
 		if err = writeInstrumentHeader(w, &ih); err != nil {

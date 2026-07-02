@@ -1,14 +1,14 @@
 package load
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
-	"io"
 
 	. "github.com/Heliodex/tracker/types"
 )
 
-func readHeaderPartial(r io.Reader) (xmh *ModuleHeader, err error) {
+func readHeaderPartial(r *bytes.Buffer) (xmh *ModuleHeader, err error) {
 	xmh = &ModuleHeader{}
 
 	var sz uint32
@@ -80,7 +80,7 @@ func readHeaderPartial(r io.Reader) (xmh *ModuleHeader, err error) {
 	return
 }
 
-func readHeader(r io.Reader) (xmh *ModuleHeader, err error) {
+func readHeader(r *bytes.Buffer) (xmh *ModuleHeader, err error) {
 	if xmh, err = readHeaderPartial(r); err != nil {
 		return
 	}
@@ -100,7 +100,7 @@ func readHeader(r io.Reader) (xmh *ModuleHeader, err error) {
 	return
 }
 
-func readPatternHeaderPartial(r io.Reader) (ph *PatternHeader, err error) {
+func readPatternHeaderPartial(r *bytes.Buffer) (ph *PatternHeader, err error) {
 	ph = &PatternHeader{}
 
 	var sz uint32
@@ -128,7 +128,7 @@ func readPatternHeaderPartial(r io.Reader) (ph *PatternHeader, err error) {
 	return ph, binary.Read(r, binary.LittleEndian, &ph.PackedPatternDataSize)
 }
 
-func readPatternHeader(r io.Reader) (ph *PatternHeader, err error) {
+func readPatternHeader(r *bytes.Buffer) (ph *PatternHeader, err error) {
 	if ph, err = readPatternHeaderPartial(r); err != nil {
 		return
 	}
@@ -148,7 +148,7 @@ func readPatternHeader(r io.Reader) (ph *PatternHeader, err error) {
 	return
 }
 
-func readInstrumentHeaderPartial(r io.Reader) (ih *InstrumentHeader, err error) {
+func readInstrumentHeaderPartial(r *bytes.Buffer) (ih *InstrumentHeader, err error) {
 	// var ih InstrumentHeader
 	ih = &InstrumentHeader{}
 
@@ -350,7 +350,12 @@ func ConvertSample8Bit(data []uint8) []uint8 {
 	return converted
 }
 
-func readInstrumentHeader(r io.Reader) (ih *InstrumentHeader, err error) {
+// func bufoffset(b *bytes.Buffer) int {
+// 	// WILD.
+// 	return -(b.Available() - b.Cap() + b.Len())
+// }
+
+func readInstrumentHeader(r *bytes.Buffer) (ih *InstrumentHeader, err error) {
 	if ih, err = readInstrumentHeaderPartial(r); err != nil {
 		return
 	}
@@ -359,18 +364,16 @@ func readInstrumentHeader(r io.Reader) (ih *InstrumentHeader, err error) {
 		return nil, errors.New("unusually small instrument header size - possibly corrupt file")
 	}
 
-	for range ih.SamplesCount {
-		var s SampleHeader
-		if err = binary.Read(r, binary.LittleEndian, &s.SampleHeader1); err != nil {
+	ih.Samples = make([]SampleHeader, ih.SamplesCount)
+	for i := range ih.SamplesCount {
+		if err = binary.Read(r, binary.LittleEndian, &ih.Samples[i].SampleHeader1); err != nil {
 			return
 		}
-
-		s.SampleData = make([]uint8, s.Length)
-
-		ih.Samples = append(ih.Samples, s)
 	}
 
 	for i, s := range ih.Samples {
+		// fmt.Println("reading4", bufoffset(r), s.Length)
+
 		sd := make([]uint8, s.Length)
 		if err = binary.Read(r, binary.LittleEndian, &sd); err != nil {
 			return
@@ -388,7 +391,7 @@ func readInstrumentHeader(r io.Reader) (ih *InstrumentHeader, err error) {
 }
 
 // Read reads an XM file from the reader `r` and creates an internal File representation
-func Read(r io.Reader) (f *File, err error) {
+func Read(r *bytes.Buffer) (f *File, err error) {
 	xmh, err := readHeader(r)
 	if err != nil {
 		return
@@ -397,6 +400,8 @@ func Read(r io.Reader) (f *File, err error) {
 	if xmh.VersionNumber != 0x0104 {
 		return nil, errors.New("unsupported XM file version")
 	}
+
+	// fmt.Println("reading0", bufoffset(r))
 
 	f = &File{
 		Head: *xmh,
@@ -422,6 +427,8 @@ func Read(r io.Reader) (f *File, err error) {
 		}
 		f.Patterns = append(f.Patterns, p)
 	}
+
+	// fmt.Println("reading1", bufoffset(r))
 
 	for range xmh.NumInstruments {
 		var ih *InstrumentHeader
