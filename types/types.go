@@ -33,13 +33,13 @@ type ModuleHeader1 struct {
 	Reserved1A    uint8
 	TrackerName   [20]uint8
 	VersionNumber uint16
+	HeaderSize    uint32
+	SongLength    uint16
 }
 
 // ModuleHeader is a representation of the XM file header
 type ModuleHeader struct {
 	ModuleHeader1
-	HeaderSize uint32
-	SongLength,
 	RestartPosition,
 	NumChannels,
 	NumPatterns,

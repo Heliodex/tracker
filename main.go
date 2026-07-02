@@ -18,5 +18,10 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(f)
+	// fmt.Println(f)
+	for _, i := range f.Instruments {
+		for _, s := range i.Samples {
+			fmt.Println(s.SampleData[:20])
+		}
+	}
 }

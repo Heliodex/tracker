@@ -11,20 +11,11 @@ import (
 func readHeaderPartial(r io.Reader) (xmh *ModuleHeader, err error) {
 	xmh = &ModuleHeader{}
 
+	var sz uint32
 	if err = binary.Read(r, binary.LittleEndian, &xmh.ModuleHeader1); err != nil {
 		return
 	}
-
-	var sz uint32
-	if err = binary.Read(r, binary.LittleEndian, &xmh.HeaderSize); err != nil {
-		return
-	}
-	sz += 4
-
-	if err = binary.Read(r, binary.LittleEndian, &xmh.SongLength); err != nil {
-		return
-	}
-	if sz += 2; sz >= xmh.HeaderSize {
+	if sz += 4 + 2; sz >= xmh.HeaderSize {
 		return
 	}
 
@@ -109,7 +100,7 @@ func readHeader(r io.Reader) (xmh *ModuleHeader, err error) {
 	return
 }
 
-func readPatternHeaderPartial(r io.Reader, fileVersion uint16) (ph *PatternHeader, err error) {
+func readPatternHeaderPartial(r io.Reader) (ph *PatternHeader, err error) {
 	ph = &PatternHeader{}
 
 	var sz uint32
@@ -127,38 +118,18 @@ func readPatternHeaderPartial(r io.Reader, fileVersion uint16) (ph *PatternHeade
 		return
 	}
 
-	if fileVersion == 0x0102 {
-		var rowCount uint8
-		if err = binary.Read(r, binary.LittleEndian, &rowCount); err != nil {
-			return
-		}
-
-		ph.NumRows = uint16(rowCount) + 1
-		if sz++; sz >= ph.PatternHeaderLength {
-			return
-		}
-
-	} else {
-		if err = binary.Read(r, binary.LittleEndian, &ph.NumRows); err != nil {
-			return
-		}
-		if sz += 2; sz >= ph.PatternHeaderLength {
-			return
-		}
-	}
-
-	if err = binary.Read(r, binary.LittleEndian, &ph.PackedPatternDataSize); err != nil {
+	if err = binary.Read(r, binary.LittleEndian, &ph.NumRows); err != nil {
 		return
 	}
 	if sz += 2; sz >= ph.PatternHeaderLength {
 		return
 	}
 
-	return
+	return ph, binary.Read(r, binary.LittleEndian, &ph.PackedPatternDataSize)
 }
 
-func readPatternHeader(r io.Reader, fileVersion uint16) (ph *PatternHeader, err error) {
-	if ph, err = readPatternHeaderPartial(r, fileVersion); err != nil {
+func readPatternHeader(r io.Reader) (ph *PatternHeader, err error) {
+	if ph, err = readPatternHeaderPartial(r); err != nil {
 		return
 	}
 
@@ -352,23 +323,31 @@ func readInstrumentHeaderPartial(r io.Reader) (ih *InstrumentHeader, err error) 
 	return
 }
 
-func convertSample16Bit(data []uint8) {
+func convertSample16Bit(data []uint8) []uint8 {
+	converted := make([]uint8, len(data))
+
 	var old int16
 	for i := 0; i < len(data); i += 2 {
 		s := binary.LittleEndian.Uint16(data[i:])
 		new := int16(s) + old
-		binary.LittleEndian.PutUint16(data[i:], uint16(new))
+		binary.LittleEndian.PutUint16(converted[i:], uint16(new))
 		old = new
 	}
+
+	return converted
 }
 
-func convertSample8Bit(data []uint8) {
+func convertSample8Bit(data []uint8) []uint8 {
+	converted := make([]uint8, len(data))
+
 	var old int8
 	for i, s := range data {
 		new := int8(s) + old
-		data[i] = uint8(new)
+		converted[i] = uint8(new)
 		old = new
 	}
+
+	return converted
 }
 
 func readInstrumentHeader(r io.Reader) (ih *InstrumentHeader, err error) {
@@ -391,16 +370,17 @@ func readInstrumentHeader(r io.Reader) (ih *InstrumentHeader, err error) {
 		ih.Samples = append(ih.Samples, s)
 	}
 
-	for _, s := range ih.Samples {
-		if err = binary.Read(r, binary.LittleEndian, &s.SampleData); err != nil {
+	for i, s := range ih.Samples {
+		sd := make([]uint8, s.Length)
+		if err = binary.Read(r, binary.LittleEndian, &sd); err != nil {
 			return
 		}
 
 		// convert the sample in the background
 		if (s.Flags & SampleFlag16Bit) != 0 {
-			convertSample16Bit(s.SampleData)
+			ih.Samples[i].SampleData = convertSample16Bit(sd)
 		} else {
-			convertSample8Bit(s.SampleData)
+			ih.Samples[i].SampleData = convertSample8Bit(sd)
 		}
 	}
 
@@ -421,8 +401,12 @@ func Read(r io.Reader) (f *File, err error) {
 	for range xmh.NumPatterns {
 		var p Pattern
 
+		if xmh.VersionNumber != 0x0104 {
+			return nil, errors.New("unsupported XM file version")
+		}
+
 		var ph *PatternHeader
-		if ph, err = readPatternHeader(r, xmh.VersionNumber); err != nil {
+		if ph, err = readPatternHeader(r); err != nil {
 			return
 		}
 		p.Header = *ph
