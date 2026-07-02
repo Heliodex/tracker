@@ -100,9 +100,9 @@ func (m *ModuleHeader) String() string {
 	b.WriteString("\nDefaultTempo: ")
 	b.WriteString(strconv.Itoa(int(m.DefaultTempo)))
 	b.WriteString("\nOrderTable: ")
-	for i := range 256 {
+	for i := range m.SongLength {
 		b.WriteString(strconv.Itoa(int(m.OrderTable[i])))
-		if i < 255 {
+		if i < m.SongLength-1 {
 			b.WriteString(", ")
 		}
 	}
@@ -256,8 +256,9 @@ func (p *Pattern) String() string {
 	b.WriteString("PatternFileFormat: ")
 	b.WriteString(p.PatternFileFormat.String())
 	b.WriteString("\nData: [\n")
-	for i := range p.Data {
-		b.WriteString(indent(p.Data[i].String(), 1))
+	for i, r := range p.Data {
+		fmt.Fprintf(&b, "Row %03d: ", i) // TODO: check if hex works better
+		b.WriteString(r.String())
 		if i < len(p.Data)-1 {
 			b.WriteString("\n")
 		}
