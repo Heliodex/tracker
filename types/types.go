@@ -160,10 +160,33 @@ func (f ChannelFlags) IsValid() bool {
 	return (f & ChannelFlagValid) != 0
 }
 
+type Note uint8
+
+var notes = [12]string{"C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-"}
+
+func (n Note) String() string {
+	if n == 0 {
+		return "..."
+	}
+	if n == 97 {
+		return "[ ]"
+	}
+	if n > 97 {
+		return "!!!"
+	}
+
+	rn := n - 1
+
+	note := notes[rn%12]
+	octave := rn / 12
+
+	return note + strconv.Itoa(int(octave))
+}
+
 // ChannelData is the XM unpacked pattern channel data definition
 type ChannelData struct {
 	ChannelFlags
-	Note,
+	Note
 	Instrument,
 	Volume,
 	Effect,
@@ -175,7 +198,7 @@ func (c *ChannelData) String() string {
 	b.WriteString("ChannelFlags: ")
 	b.WriteString(strconv.Itoa(int(c.ChannelFlags)))
 	b.WriteString("\nNote: ")
-	b.WriteString(strconv.Itoa(int(c.Note)))
+	b.WriteString(c.Note.String())
 	b.WriteString("\nInstrument: ")
 	b.WriteString(strconv.Itoa(int(c.Instrument)))
 	b.WriteString("\nVolume: ")
@@ -294,7 +317,7 @@ func (p *Pattern) Unpack(numChannels int, pd []byte) (err error) {
 				}
 			} else {
 				// it isn't... assume it's a note and that we have everything present
-				ch.Note = uint8(ch.ChannelFlags)
+				ch.Note = Note(ch.ChannelFlags)
 				ch.ChannelFlags = ChannelFlagsAll
 			}
 
