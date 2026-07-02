@@ -305,7 +305,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	return
 }
 
-func unconvertSample16Bit(converted []uint8) []uint8 {
+func UnconvertSample16Bit(converted []uint8) []uint8 {
 	data := make([]uint8, len(converted))
 
 	var old int16
@@ -319,7 +319,7 @@ func unconvertSample16Bit(converted []uint8) []uint8 {
 	return data
 }
 
-func unconvertSample8Bit(converted []uint8) []uint8 {
+func UnconvertSample8Bit(converted []uint8) []uint8 {
 	data := make([]uint8, len(converted))
 
 	var new int8
@@ -357,20 +357,18 @@ func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 		// unconvert the sample in the background
 		if (s.Flags & SampleFlag16Bit) != 0 {
 			fmt.Println("writing4", w.Len())
-			sd = unconvertSample16Bit(s.SampleData)
+			sd = UnconvertSample16Bit(s.SampleData)
 		} else {
 			fmt.Println("writing5", w.Len())
-			sd = unconvertSample8Bit(s.SampleData)
+			sd = UnconvertSample8Bit(s.SampleData)
 		}
 
-		// if err = binary.Write(w, binary.LittleEndian, &sd); err != nil {
-		// 	return
-		// }
 		for _, b := range sd {
 			if err = binary.Write(w, binary.LittleEndian, b); err != nil {
 				return
 			}
 		}
+		fmt.Println()
 	}
 
 	return writeInstrumentHeaderPartial(w, ih)

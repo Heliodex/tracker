@@ -323,7 +323,7 @@ func readInstrumentHeaderPartial(r io.Reader) (ih *InstrumentHeader, err error) 
 	return
 }
 
-func convertSample16Bit(data []uint8) []uint8 {
+func ConvertSample16Bit(data []uint8) []uint8 {
 	converted := make([]uint8, len(data))
 
 	var old int16
@@ -337,7 +337,7 @@ func convertSample16Bit(data []uint8) []uint8 {
 	return converted
 }
 
-func convertSample8Bit(data []uint8) []uint8 {
+func ConvertSample8Bit(data []uint8) []uint8 {
 	converted := make([]uint8, len(data))
 
 	var old int8
@@ -378,9 +378,9 @@ func readInstrumentHeader(r io.Reader) (ih *InstrumentHeader, err error) {
 
 		// convert the sample in the background
 		if (s.Flags & SampleFlag16Bit) != 0 {
-			ih.Samples[i].SampleData = convertSample16Bit(sd)
+			ih.Samples[i].SampleData = ConvertSample16Bit(sd)
 		} else {
-			ih.Samples[i].SampleData = convertSample8Bit(sd)
+			ih.Samples[i].SampleData = ConvertSample8Bit(sd)
 		}
 	}
 
