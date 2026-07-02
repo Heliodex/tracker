@@ -169,7 +169,7 @@ func (n Note) String() string {
 		return "..."
 	}
 	if n == 97 {
-		return "[ ]"
+		return "###"
 	}
 	if n > 97 {
 		return "!!!"
@@ -194,20 +194,7 @@ type ChannelData struct {
 }
 
 func (c *ChannelData) String() string {
-	var b bytes.Buffer
-	b.WriteString("ChannelFlags: ")
-	b.WriteString(strconv.Itoa(int(c.ChannelFlags)))
-	b.WriteString("\nNote: ")
-	b.WriteString(c.Note.String())
-	b.WriteString("\nInstrument: ")
-	b.WriteString(strconv.Itoa(int(c.Instrument)))
-	b.WriteString("\nVolume: ")
-	b.WriteString(strconv.Itoa(int(c.Volume)))
-	b.WriteString("\nEffect: ")
-	b.WriteString(strconv.Itoa(int(c.Effect)))
-	b.WriteString("\nEffectParameter: ")
-	b.WriteString(strconv.Itoa(int(c.EffectParameter)))
-	return fmt.Sprintf("ChannelData {\n%s\n}", indent(b.String(), 1))
+	return fmt.Sprintf("%s %02X %02X %02X %02X", c.Note.String(), c.Instrument, c.Volume, c.Effect, c.EffectParameter)
 }
 
 // PatternHeader is the XM packed pattern header definition
@@ -248,15 +235,13 @@ type PatternRow []ChannelData
 
 func (p PatternRow) String() string {
 	var b bytes.Buffer
-	b.WriteString("[\n")
 	for i := range p {
-		b.WriteString(indent(p[i].String(), 1))
+		b.WriteString(p[i].String())
 		if i < len(p)-1 {
-			b.WriteString(",\n")
+			b.WriteString(" | ")
 		}
 	}
-	b.WriteString("\n]")
-	return fmt.Sprintf("PatternRow {\n%s\n}", indent(b.String(), 1))
+	return b.String()
 }
 
 // Pattern is an XM internal file representation and converted/unpacked pattern set
@@ -274,7 +259,7 @@ func (p *Pattern) String() string {
 	for i := range p.Data {
 		b.WriteString(indent(p.Data[i].String(), 1))
 		if i < len(p.Data)-1 {
-			b.WriteString(",\n")
+			b.WriteString("\n")
 		}
 	}
 	b.WriteString("\n]")
