@@ -394,16 +394,16 @@ func Read(r io.Reader) (f *File, err error) {
 		return
 	}
 
+	if xmh.VersionNumber != 0x0104 {
+		return nil, errors.New("unsupported XM file version")
+	}
+
 	f = &File{
 		Head: *xmh,
 	}
 
 	for range xmh.NumPatterns {
 		var p Pattern
-
-		if xmh.VersionNumber != 0x0104 {
-			return nil, errors.New("unsupported XM file version")
-		}
 
 		var ph *PatternHeader
 		if ph, err = readPatternHeader(r); err != nil {

@@ -337,48 +337,43 @@ func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 		return errors.New("unusually small instrument header size")
 	}
 
-	if err = writeInstrumentHeaderPartial(w, ih); err != nil {
-		return
-	}
-
-	for range ih.SamplesCount {
-		var s SampleHeader
+	for _, s := range ih.Samples {
 		if err = binary.Write(w, binary.LittleEndian, &s.SampleHeader1); err != nil {
 			return
 		}
-
-		s.SampleData = make([]uint8, s.Length)
-
-		ih.Samples = append(ih.Samples, s)
 	}
 
 	for _, s := range ih.Samples {
-		if err = binary.Write(w, binary.LittleEndian, &s.SampleData); err != nil {
-			return
+		var sd []uint8
+
+		// unconvert the sample in the background
+		if (s.Flags & SampleFlag16Bit) != 0 {
+			sd = unconvertSample16Bit(s.SampleData)
+		} else {
+			sd = unconvertSample8Bit(s.SampleData)
 		}
 
-		// convert the sample in the background
-		if (s.Flags & SampleFlag16Bit) != 0 {
-			unconvertSample16Bit(s.SampleData)
-		} else {
-			unconvertSample8Bit(s.SampleData)
+		if err = binary.Write(w, binary.LittleEndian, &sd); err != nil {
+			return
 		}
 	}
 
-	return
+	return writeInstrumentHeaderPartial(w, ih)
 }
 
 // Write writes an XM file from the File `f` to the writer `w`
 func Write(w io.Writer, f *File) (err error) {
-	var buf bytes.Buffer
+	if f.Head.VersionNumber != 0x0104 {
+		return errors.New("unsupported XM file version")
+	}
 
+	var buf bytes.Buffer
 	if err = writeHeader(&buf, &f.Head); err != nil {
 		return
 	}
 
-	for i := range f.Patterns {
-		p := &f.Patterns[i]
-		if err = writePatternHeaderPartial(&buf, &p.Header); err != nil {
+	for _, p := range f.Patterns {
+		if err = writePatternHeader(&buf, &p.Header); err != nil {
 			return
 		}
 
@@ -391,18 +386,12 @@ func Write(w io.Writer, f *File) (err error) {
 		}
 	}
 
-	for i := range f.Instruments {
-		ih := &f.Instruments[i]
-		if err = writeInstrumentHeader(&buf, ih); err != nil {
+	for _, ih := range f.Instruments {
+		if err = writeInstrumentHeader(&buf, &ih); err != nil {
 			return
-		}
-		for j := range ih.Samples {
-			if err = writeSampleHeader(&buf, &ih.Samples[j]); err != nil {
-				return
-			}
 		}
 	}
 
-	_, err = w.Write(buf.Bytes())
+	_, err = buf.WriteTo(w)
 	return
 }
