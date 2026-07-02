@@ -3,6 +3,7 @@ package load
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	. "github.com/Heliodex/tracker/types"
@@ -330,11 +331,16 @@ func convertSample16Bit(data []uint8) []uint8 {
 	for i := 0; i < len(data); i += 2 {
 		s := binary.LittleEndian.Uint16(data[i:])
 		new := int16(s) + old
+		// fmt.Printf("c %2d %04x %04x %04x\n", i, s, old, uint16(new))
 		binary.LittleEndian.PutUint16(converted[i:], uint16(new))
 		old = new
 	}
 
 	return converted
+}
+
+func init() {
+	fmt.Println("1", convertSample16Bit([]uint8{1, 2, 3, 4, 5, 6, 7, 8}))
 }
 
 func convertSample8Bit(data []uint8) []uint8 {

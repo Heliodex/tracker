@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"io"
+	"fmt"
 
 	. "github.com/Heliodex/tracker/types"
 )
@@ -312,11 +312,17 @@ func unconvertSample16Bit(converted []uint8) []uint8 {
 	for i := 0; i < len(converted); i += 2 {
 		s := binary.LittleEndian.Uint16(converted[i:])
 		old := int16(s) - new
+		// fmt.Printf("u %2d %04x %04x %04x\n", i, uint16(old), new, s)
 		binary.LittleEndian.PutUint16(data[i:], uint16(old))
 		new = old
 	}
 
 	return data
+}
+
+func init() {
+	fmt.Println("u", unconvertSample16Bit([]uint8{1, 2, 4, 6, 9, 12, 16, 20}))
+	fmt.Println()
 }
 
 func unconvertSample8Bit(converted []uint8) []uint8 {
@@ -333,9 +339,17 @@ func unconvertSample8Bit(converted []uint8) []uint8 {
 }
 
 func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
+	// fmt.Println("writing2", w.Len())
+
 	if ih.Size < 29 {
 		return errors.New("unusually small instrument header size")
 	}
+
+	if err = writeInstrumentHeaderPartial(w, ih); err != nil {
+		return
+	}
+
+	// fmt.Println("writing3", w.Len())
 
 	for _, s := range ih.Samples {
 		if err = binary.Write(w, binary.LittleEndian, &s.SampleHeader1); err != nil {
@@ -344,6 +358,7 @@ func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 	}
 
 	for _, s := range ih.Samples {
+		fmt.Println("writing4", w.Len())
 		var sd []uint8
 
 		// unconvert the sample in the background
@@ -353,8 +368,13 @@ func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 			sd = unconvertSample8Bit(s.SampleData)
 		}
 
-		if err = binary.Write(w, binary.LittleEndian, &sd); err != nil {
-			return
+		// if err = binary.Write(w, binary.LittleEndian, &sd); err != nil {
+		// 	return
+		// }
+		for _, b := range sd {
+			if err = binary.Write(w, binary.LittleEndian, b); err != nil {
+				return
+			}
 		}
 	}
 
@@ -362,18 +382,17 @@ func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 }
 
 // Write writes an XM file from the File `f` to the writer `w`
-func Write(w io.Writer, f *File) (err error) {
+func Write(w *bytes.Buffer, f *File) (err error) {
 	if f.Head.VersionNumber != 0x0104 {
 		return errors.New("unsupported XM file version")
 	}
 
-	var buf bytes.Buffer
-	if err = writeHeader(&buf, &f.Head); err != nil {
+	if err = writeHeader(w, &f.Head); err != nil {
 		return
 	}
 
 	for _, p := range f.Patterns {
-		if err = writePatternHeader(&buf, &p.Header); err != nil {
+		if err = writePatternHeader(w, &p.Header); err != nil {
 			return
 		}
 
@@ -381,17 +400,18 @@ func Write(w io.Writer, f *File) (err error) {
 		if packed, err = p.Pack(int(f.Head.NumChannels)); err != nil {
 			return
 		}
-		if _, err = buf.Write(packed); err != nil {
+		if _, err = w.Write(packed); err != nil {
 			return
 		}
 	}
+
+	fmt.Println("writing1", w.Len())
 
 	for _, ih := range f.Instruments {
-		if err = writeInstrumentHeader(&buf, &ih); err != nil {
+		if err = writeInstrumentHeader(w, &ih); err != nil {
 			return
 		}
 	}
 
-	_, err = buf.WriteTo(w)
 	return
 }
