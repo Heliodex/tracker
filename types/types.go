@@ -162,7 +162,14 @@ func (f ChannelFlags) IsValid() bool {
 
 type Note uint8
 
-var notes = [12]string{"C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-"}
+var notes = [12]string{
+	"C-", "C#", "D-", "D#", "E-", "F-",
+	"F#", "G-", "G#", "A-", "A#", "B-",
+}
+var noteMap = map[string]Note{
+	"C-": 1, "C#": 2, "D-": 3, "D#": 4, "E-": 5, "F-": 6,
+	"F#": 7, "G-": 8, "G#": 9, "A-": 10, "A#": 11, "B-": 12,
+}
 
 func (n Note) String() string {
 	if n == 0 {
@@ -177,10 +184,43 @@ func (n Note) String() string {
 
 	rn := n - 1
 
-	note := notes[rn%12]
+	tone := notes[rn%12]
 	octave := rn / 12
 
-	return note + strconv.Itoa(int(octave))
+	return tone + strconv.Itoa(int(octave))
+}
+
+func ParseNote(s string) (Note, error) {
+	if len(s) != 3 {
+		return 0, fmt.Errorf("invalid note: %s", s)
+	}
+
+	if s == "..." {
+		return 0, nil
+	}
+	if s == "###" {
+		return 97, nil
+	}
+	if s == "!!!" {
+		return 0, fmt.Errorf("note outside range: %s", s)
+	}
+
+	tone := s[:2]
+	octave, err := strconv.Atoi(s[2:])
+	if err != nil {
+		return 0, fmt.Errorf("invalid note octave: %s", s)
+	}
+
+	if octave < 0 || octave > 7 {
+		return 0, fmt.Errorf("note octave out of range: %s", s)
+	}
+
+	n, ok := noteMap[tone]
+	if !ok {
+		return 0, fmt.Errorf("invalid note tone: %s", s)
+	}
+
+	return n + Note(octave*12), nil
 }
 
 // ChannelData is the XM unpacked pattern channel data definition
