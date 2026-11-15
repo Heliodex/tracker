@@ -21,10 +21,11 @@ type ChannelData struct {
 type Pattern [][]ChannelData
 
 type TextFormat struct {
-	Name        [20]uint8
-	NumPatterns uint16
-	OrderTable  []uint8
-	Patterns    []Pattern
+	Name [20]uint8
+	NumPatterns,
+	NumChannels uint16
+	OrderTable []uint8
+	Patterns   []Pattern
 }
 
 type Parser struct {
@@ -47,7 +48,7 @@ func (p *Parser) SkipString(s string) (ok bool) {
 	return true
 }
 
-func (p *Parser) ReadLine() (line string, err error) {
+func (p *Parser) ReadUntil(delim byte) (line string, err error) {
 	var buf bytes.Buffer
 	for {
 		var b [1]byte
@@ -55,7 +56,7 @@ func (p *Parser) ReadLine() (line string, err error) {
 			return "", err
 		}
 
-		if b[0] == '\n' {
+		if b[0] == delim {
 			break
 		}
 
@@ -66,14 +67,35 @@ func (p *Parser) ReadLine() (line string, err error) {
 	return buf.String(), nil
 }
 
-func parsePatternRows(p *Parser, numRows int) (Pattern, error) {
+func (p *Parser) ReadLine() (line string, err error) {
+	return p.ReadUntil('\n')
+}
+
+func parsePatternRows(p *Parser, numRows int, numChannels uint16) (Pattern, error) {
 	rows := make(Pattern, numRows)
 	for i := range numRows {
 		if !p.SkipString("Row ") {
 			return nil, errors.New("expected 'Row '")
 		}
 
-		
+		rowIndexLine, err := p.ReadUntil(':')
+		if err != nil {
+			return nil, fmt.Errorf("failed to read row index: %w", err)
+		}
+
+		rowIndex, err := strconv.Atoi(rowIndexLine)
+		if err != nil {
+			return nil, fmt.Errorf("invalid row index: %s", rowIndexLine)
+		}
+
+		if rowIndex != i {
+			return nil, fmt.Errorf("row index mismatch: expected %d, got %d", i, rowIndex)
+		}
+
+		if !p.SkipString(" ") {
+			return nil, errors.New("expected space after row index")
+		}
+
 	}
 
 	return
@@ -113,7 +135,7 @@ func parsePatterns(p *Parser, tf *TextFormat) error {
 			return fmt.Errorf("invalid number of rows: %s", rowsLine)
 		}
 
-		rows, err := parsePatternRows(p, numRows)
+		rows, err := parsePatternRows(p, numRows, tf.NumChannels)
 		if err != nil {
 			return fmt.Errorf("failed to parse pattern rows: %w", err)
 		}
@@ -157,6 +179,25 @@ func parseNumPatterns(p *Parser, tf *TextFormat) error {
 	}
 
 	tf.NumPatterns = uint16(numPatterns)
+	return nil
+}
+
+func parseNumChannels(p *Parser, tf *TextFormat) error {
+	if !p.SkipString("NumChannels: ") {
+		return errors.New("expected 'NumChannels: '")
+	}
+
+	numChannelsLine, err := p.ReadLine()
+	if err != nil {
+		return fmt.Errorf("failed to read NumChannels: %w", err)
+	}
+
+	numChannels, err := strconv.Atoi(numChannelsLine)
+	if err != nil {
+		return fmt.Errorf("invalid NumChannels value: %s", numChannelsLine)
+	}
+
+	tf.NumChannels = uint16(numChannels)
 	return nil
 }
 

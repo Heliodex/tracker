@@ -22,6 +22,7 @@ func main() {
 
 	testcontent := `
 Name: cool guy
+NumPatterns: 1
 Order: 0
 
 Pattern 0
