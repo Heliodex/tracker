@@ -8,11 +8,44 @@ import (
 	. "github.com/Heliodex/tracker/types"
 )
 
+func UnconvertSample16Bit(converted []uint8) []uint8 {
+	data := make([]uint8, len(converted))
+
+	var old int16
+
+	for i := 0; i < len(converted); i += 2 {
+		s := binary.LittleEndian.Uint16(converted[i:])
+		new := int16(s) - old
+
+		binary.LittleEndian.PutUint16(data[i:], uint16(new))
+
+		old = int16(s)
+	}
+
+	return data
+}
+
+func UnconvertSample8Bit(converted []uint8) []uint8 {
+	data := make([]uint8, len(converted))
+
+	var new int8
+
+	for i, s := range converted {
+		old := int8(s) - new
+		data[i] = uint8(old)
+		new = int8(s)
+	}
+
+	return data
+}
+
 func writeHeaderPartial(w *bytes.Buffer, xmh *ModuleHeader) (err error) {
 	var sz uint32
+
 	if err = binary.Write(w, binary.LittleEndian, xmh.ModuleHeader1); err != nil {
 		return
 	}
+
 	if sz += 4 + 2; sz >= xmh.HeaderSize {
 		return
 	}
@@ -20,6 +53,7 @@ func writeHeaderPartial(w *bytes.Buffer, xmh *ModuleHeader) (err error) {
 	if err = binary.Write(w, binary.LittleEndian, xmh.RestartPosition); err != nil {
 		return
 	}
+
 	if sz += 2; sz >= xmh.HeaderSize {
 		return
 	}
@@ -27,6 +61,7 @@ func writeHeaderPartial(w *bytes.Buffer, xmh *ModuleHeader) (err error) {
 	if err = binary.Write(w, binary.LittleEndian, xmh.NumChannels); err != nil {
 		return
 	}
+
 	if sz += 2; sz >= xmh.HeaderSize {
 		return
 	}
@@ -34,6 +69,7 @@ func writeHeaderPartial(w *bytes.Buffer, xmh *ModuleHeader) (err error) {
 	if err = binary.Write(w, binary.LittleEndian, xmh.NumPatterns); err != nil {
 		return
 	}
+
 	if sz += 2; sz >= xmh.HeaderSize {
 		return
 	}
@@ -41,6 +77,7 @@ func writeHeaderPartial(w *bytes.Buffer, xmh *ModuleHeader) (err error) {
 	if err = binary.Write(w, binary.LittleEndian, xmh.NumInstruments); err != nil {
 		return
 	}
+
 	if sz += 2; sz >= xmh.HeaderSize {
 		return
 	}
@@ -48,6 +85,7 @@ func writeHeaderPartial(w *bytes.Buffer, xmh *ModuleHeader) (err error) {
 	if err = binary.Write(w, binary.LittleEndian, uint16(xmh.Flags)); err != nil {
 		return
 	}
+
 	if sz += 2; sz >= xmh.HeaderSize {
 		return
 	}
@@ -55,6 +93,7 @@ func writeHeaderPartial(w *bytes.Buffer, xmh *ModuleHeader) (err error) {
 	if err = binary.Write(w, binary.LittleEndian, xmh.DefaultSpeed); err != nil {
 		return
 	}
+
 	if sz += 2; sz >= xmh.HeaderSize {
 		return
 	}
@@ -62,6 +101,7 @@ func writeHeaderPartial(w *bytes.Buffer, xmh *ModuleHeader) (err error) {
 	if err = binary.Write(w, binary.LittleEndian, xmh.DefaultTempo); err != nil {
 		return
 	}
+
 	if sz += 2; sz >= xmh.HeaderSize {
 		return
 	}
@@ -70,6 +110,7 @@ func writeHeaderPartial(w *bytes.Buffer, xmh *ModuleHeader) (err error) {
 		if err = binary.Write(w, binary.LittleEndian, xmh.OrderTable[i]); err != nil {
 			return
 		}
+
 		if sz++; sz >= xmh.HeaderSize {
 			return
 		}
@@ -94,49 +135,13 @@ func writeHeader(w *bytes.Buffer, xmh *ModuleHeader) error {
 	return writeHeaderPartial(w, xmh)
 }
 
-func writePatternHeaderPartial(w *bytes.Buffer, ph *PatternHeader) (err error) {
-	var sz uint32
-	if err = binary.Write(w, binary.LittleEndian, ph.PatternHeaderLength); err != nil {
-		return
-	}
-	if sz += 4; sz >= ph.PatternHeaderLength {
-		return
-	}
-
-	if err = binary.Write(w, binary.LittleEndian, ph.PackingType); err != nil {
-		return
-	}
-	if sz++; sz >= ph.PatternHeaderLength {
-		return
-	}
-
-	if err = binary.Write(w, binary.LittleEndian, ph.NumRows); err != nil {
-		return
-	}
-	if sz += 2; sz >= ph.PatternHeaderLength {
-		return
-	}
-
-	return binary.Write(w, binary.LittleEndian, ph.PackedPatternDataSize)
-}
-
-func writePatternHeader(w *bytes.Buffer, ph *PatternHeader) (err error) {
-	if ph.PackingType != 0 {
-		return errors.New("unexpected pattern packing type")
-	}
-
-	if ph.NumRows < 1 || ph.NumRows > 256 {
-		return errors.New("pattern row count out of range")
-	}
-
-	return writePatternHeaderPartial(w, ph)
-}
-
 func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 	var sz uint32
+
 	if err = binary.Write(w, binary.LittleEndian, &ih.InstrumentHeader1); err != nil {
 		return
 	}
+
 	if sz += 4 + 22 + 1 + 2; sz >= ih.Size {
 		return
 	}
@@ -144,6 +149,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.SampleHeaderSize); err != nil {
 		return
 	}
+
 	if sz += 4; sz >= ih.Size {
 		return
 	}
@@ -152,6 +158,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 		if err = binary.Write(w, binary.LittleEndian, &ih.SampleNumber[i]); err != nil {
 			return
 		}
+
 		if sz++; sz >= ih.Size {
 			return
 		}
@@ -161,12 +168,15 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 		if err = binary.Write(w, binary.LittleEndian, &ih.VolEnv[i].X); err != nil {
 			return
 		}
+
 		if sz += 2; sz >= ih.Size {
 			return
 		}
+
 		if err = binary.Write(w, binary.LittleEndian, &ih.VolEnv[i].Y); err != nil {
 			return
 		}
+
 		if sz += 2; sz >= ih.Size {
 			return
 		}
@@ -176,12 +186,15 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 		if err = binary.Write(w, binary.LittleEndian, &ih.PanEnv[i].X); err != nil {
 			return
 		}
+
 		if sz += 2; sz >= ih.Size {
 			return
 		}
+
 		if err = binary.Write(w, binary.LittleEndian, &ih.PanEnv[i].Y); err != nil {
 			return
 		}
+
 		if sz += 2; sz >= ih.Size {
 			return
 		}
@@ -190,6 +203,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.VolPoints); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -197,6 +211,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.PanPoints); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -204,6 +219,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.VolSustainPoint); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -211,6 +227,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.VolLoopStartPoint); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -218,6 +235,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.VolLoopEndPoint); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -225,6 +243,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.PanSustainPoint); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -232,6 +251,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.PanLoopStartPoint); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -239,6 +259,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.PanLoopEndPoint); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -246,6 +267,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.VolFlags); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -253,6 +275,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.PanFlags); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -260,6 +283,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.VibratoType); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -267,6 +291,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.VibratoSweep); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -274,6 +299,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.VibratoDepth); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -281,6 +307,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.VibratoRate); err != nil {
 		return
 	}
+
 	if sz++; sz >= ih.Size {
 		return
 	}
@@ -288,6 +315,7 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 	if err = binary.Write(w, binary.LittleEndian, &ih.VolumeFadeout); err != nil {
 		return
 	}
+
 	if sz += 2; sz >= ih.Size {
 		return
 	}
@@ -296,39 +324,13 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 		if err = binary.Write(w, binary.LittleEndian, &ih.ReservedP241[i]); err != nil {
 			return
 		}
+
 		if sz += 2; sz >= ih.Size {
 			return
 		}
 	}
 
 	return
-}
-
-func UnconvertSample16Bit(converted []uint8) []uint8 {
-	data := make([]uint8, len(converted))
-
-	var old int16
-	for i := 0; i < len(converted); i += 2 {
-		s := binary.LittleEndian.Uint16(converted[i:])
-		new := int16(s) - old
-		binary.LittleEndian.PutUint16(data[i:], uint16(new))
-		old = int16(s)
-	}
-
-	return data
-}
-
-func UnconvertSample8Bit(converted []uint8) []uint8 {
-	data := make([]uint8, len(converted))
-
-	var new int8
-	for i, s := range converted {
-		old := int8(s) - new
-		data[i] = uint8(old)
-		new = int8(s)
-	}
-
-	return data
 }
 
 func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
@@ -354,7 +356,7 @@ func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 		var sd []uint8
 
 		// unconvert the sample in the background
-		if (s.Flags & SampleFlag16Bit) != 0 {
+		if s.Flags&SampleFlag16Bit != 0 {
 			sd = UnconvertSample16Bit(s.SampleData)
 		} else {
 			sd = UnconvertSample8Bit(s.SampleData)
@@ -367,6 +369,48 @@ func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 	}
 
 	return // HOURS tracking down this bug because I accidentally wrote the instrument header twice
+}
+
+func writePatternHeaderPartial(w *bytes.Buffer, ph *PatternHeader) (err error) {
+	var sz uint32
+
+	if err = binary.Write(w, binary.LittleEndian, ph.PatternHeaderLength); err != nil {
+		return
+	}
+
+	if sz += 4; sz >= ph.PatternHeaderLength {
+		return
+	}
+
+	if err = binary.Write(w, binary.LittleEndian, ph.PackingType); err != nil {
+		return
+	}
+
+	if sz++; sz >= ph.PatternHeaderLength {
+		return
+	}
+
+	if err = binary.Write(w, binary.LittleEndian, ph.NumRows); err != nil {
+		return
+	}
+
+	if sz += 2; sz >= ph.PatternHeaderLength {
+		return
+	}
+
+	return binary.Write(w, binary.LittleEndian, ph.PackedPatternDataSize)
+}
+
+func writePatternHeader(w *bytes.Buffer, ph *PatternHeader) (err error) {
+	if ph.PackingType != 0 {
+		return errors.New("unexpected pattern packing type")
+	}
+
+	if ph.NumRows < 1 || ph.NumRows > 256 {
+		return errors.New("pattern row count out of range")
+	}
+
+	return writePatternHeaderPartial(w, ph)
 }
 
 // Write writes an XM file from the File `f` to the writer `w`
@@ -387,9 +431,11 @@ func Write(w *bytes.Buffer, f *File) (err error) {
 		}
 
 		var packed []byte
+
 		if packed, err = p.Pack(int(f.Head.NumChannels)); err != nil {
 			return
 		}
+
 		if _, err = w.Write(packed); err != nil {
 			return
 		}
