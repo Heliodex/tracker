@@ -25,7 +25,7 @@ type TextFormat struct {
 	NumPatterns,
 	NumChannels uint16
 	OrderTable []uint8
-	Patterns   []Pattern
+	Patterns []Pattern
 }
 
 type Parser struct {

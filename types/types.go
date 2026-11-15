@@ -40,13 +40,13 @@ func indent(s string, level int) string {
 }
 
 type ModuleHeader1 struct {
-	IDText        [17]uint8
-	Name          [20]uint8
-	Reserved1A    uint8
-	TrackerName   [20]uint8
+	IDText [17]uint8
+	Name [20]uint8
+	Reserved1A uint8
+	TrackerName [20]uint8
 	VersionNumber uint16
-	HeaderSize    uint32
-	SongLength    uint16
+	HeaderSize uint32
+	SongLength uint16
 }
 
 func (m *ModuleHeader1) String() string {
@@ -239,9 +239,9 @@ func (c *ChannelData) String() string {
 
 // PatternHeader is the XM packed pattern header definition
 type PatternHeader struct {
-	PatternHeaderLength   uint32
-	PackingType           uint8
-	NumRows               uint16
+	PatternHeaderLength uint32
+	PackingType uint8
+	NumRows uint16
 	PackedPatternDataSize uint16
 }
 
@@ -468,13 +468,13 @@ type SampleHeader1 struct {
 	Length,
 	LoopStart,
 	LoopLength uint32
-	Volume             uint8
-	Finetune           int8
-	Flags              SampleFlags
-	Panning            uint8
+	Volume uint8
+	Finetune int8
+	Flags SampleFlags
+	Panning uint8
 	RelativeNoteNumber int8
-	ReservedP17        uint8
-	Name               [22]uint8
+	ReservedP17 uint8
+	Name [22]uint8
 }
 
 func (s *SampleHeader1) String() string {
@@ -524,9 +524,9 @@ func (s *SampleHeader) String() string {
 }
 
 type InstrumentHeader1 struct {
-	Size         uint32
-	Name         [22]uint8
-	Type         uint8
+	Size uint32
+	Name [22]uint8
+	Type uint8
 	SamplesCount uint16
 }
 
@@ -548,7 +548,7 @@ type InstrumentHeader struct {
 	InstrumentHeader1
 
 	SampleHeaderSize uint32
-	SampleNumber     [96]uint8
+	SampleNumber [96]uint8
 	VolEnv,
 	PanEnv [12]EnvPoint
 
@@ -567,7 +567,7 @@ type InstrumentHeader struct {
 	VibratoDepth,
 	VibratoRate uint8
 	VolumeFadeout uint16
-	ReservedP241  [11]uint16
+	ReservedP241 [11]uint16
 
 	Samples []SampleHeader
 }
@@ -649,8 +649,8 @@ func (i *InstrumentHeader) String() string {
 
 // File is an XM internal file representation
 type File struct {
-	Head        ModuleHeader
-	Patterns    []Pattern
+	Head ModuleHeader
+	Patterns []Pattern
 	Instruments []InstrumentHeader
 }
 
