@@ -19,7 +19,6 @@ func main() {
 	// }
 
 	// fmt.Println(f)
-
 	testcontent := `
 Name: cool guy
 NumPatterns: 1
@@ -27,9 +26,11 @@ Order: 0
 
 Pattern 0
 `[1:]
+
 	tf, err := loadtext.ReadText(bytes.NewBuffer([]byte(testcontent)))
 	if err != nil {
 		panic(err)
 	}
+
 	fmt.Println(tf)
 }

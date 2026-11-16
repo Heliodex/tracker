@@ -366,7 +366,6 @@ func readInstrumentHeader(r *bytes.Buffer) (ih *InstrumentHeader, err error) {
 
 	for i, s := range ih.Samples {
 		// fmt.Println("reading4", bufoffset(r), s.Length)
-
 		sd := make([]uint8, s.Length)
 
 		if err = binary.Read(r, binary.LittleEndian, &sd); err != nil {
@@ -424,7 +423,6 @@ func readPatternHeader(r *bytes.Buffer) (ph *PatternHeader, err error) {
 	//if ph.NumRows == 0 {
 	//	ph.NumRows = 64
 	//}
-
 	if ph.PackingType != 0 {
 		return nil, errors.New("unexpected pattern packing type - possibly corrupt file")
 	}
@@ -448,7 +446,6 @@ func Read(r *bytes.Buffer) (f *File, err error) {
 	}
 
 	// fmt.Println("reading0", bufoffset(r))
-
 	f = &File{
 		Head: *xmh,
 	}
@@ -469,8 +466,8 @@ func Read(r *bytes.Buffer) (f *File, err error) {
 		if err = binary.Read(r, binary.LittleEndian, &ppd); err != nil {
 			return
 		}
-		// p.PackedData = ppd
 
+		// p.PackedData = ppd
 		if err = p.Unpack(int(xmh.NumChannels), ppd); err != nil {
 			return
 		}
@@ -479,7 +476,6 @@ func Read(r *bytes.Buffer) (f *File, err error) {
 	}
 
 	// fmt.Println("reading1", bufoffset(r))
-
 	for range xmh.NumInstruments {
 		var ih *InstrumentHeader
 

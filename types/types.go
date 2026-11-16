@@ -43,6 +43,7 @@ type (
 	// ModuleHeader is a representation of the XM file header
 	ModuleHeader struct {
 		ModuleHeader1
+
 		RestartPosition, NumChannels, NumPatterns, NumInstruments uint16
 		Flags HeaderFlags
 		DefaultSpeed, DefaultTempo uint16
@@ -55,6 +56,7 @@ type (
 	ChannelData struct {
 		ChannelFlags
 		Note
+
 		Instrument, Volume, Effect, EffectParameter uint8
 	}
 
@@ -76,6 +78,7 @@ type (
 	// Pattern is an XM internal file representation and converted/unpacked pattern set
 	Pattern struct {
 		PatternFileFormat
+
 		Data []PatternRow
 	}
 
@@ -96,12 +99,14 @@ type (
 	// SampleHeader is a representation of the XM file sample header
 	SampleHeader struct {
 		SampleHeader1
+
 		SampleData []uint8
 	}
 
 	// InstrumentHeader is a representation of the XM file instrument header
 	InstrumentHeader struct {
 		InstrumentHeader1
+
 		SampleHeaderSize uint32
 		SampleNumber [96]uint8
 		VolEnv, PanEnv [12]EnvPoint
@@ -232,6 +237,7 @@ func ParseNote(s string) (Note, error) {
 	}
 
 	tone := s[:2]
+
 	octave, err := strconv.Atoi(s[2:])
 	if err != nil {
 		return 0, fmt.Errorf("invalid note octave: %s", s)
@@ -321,7 +327,6 @@ func (p *Pattern) Unpack(numChannels int, pd []byte) (err error) {
 	}
 
 	// it's not empty, so let's unpack it!
-
 	p.Data = make([]PatternRow, numRows)
 	packed := bytes.NewReader(pd)
 
@@ -430,6 +435,7 @@ func (m *ModuleHeader1) String() string {
 	b.WriteString(strconv.Itoa(int(m.HeaderSize)))
 	b.WriteString("\nSongLength: ")
 	b.WriteString(strconv.Itoa(int(m.SongLength)))
+
 	return fmt.Sprintf("ModuleHeader1 {\n%s\n}", indent(b.String(), 1))
 }
 
@@ -453,8 +459,10 @@ func (m *ModuleHeader) String() string {
 	b.WriteString("\nDefaultTempo: ")
 	b.WriteString(strconv.Itoa(int(m.DefaultTempo)))
 	b.WriteString("\nOrderTable: ")
+
 	for i := range m.SongLength {
 		b.WriteString(strconv.Itoa(int(m.OrderTable[i])))
+
 		if i < m.SongLength-1 {
 			b.WriteString(", ")
 		}
@@ -478,6 +486,7 @@ func (p *PatternHeader) String() string {
 	b.WriteString(strconv.Itoa(int(p.NumRows)))
 	b.WriteString("\nPackedPatternDataSize: ")
 	b.WriteString(strconv.Itoa(int(p.PackedPatternDataSize)))
+
 	return fmt.Sprintf("PatternHeader {\n%s\n}", indent(b.String(), 1))
 }
 
@@ -486,6 +495,7 @@ func (p *PatternFileFormat) String() string {
 
 	b.WriteString("Header: ")
 	b.WriteString(p.Header.String())
+
 	return fmt.Sprintf("PatternFileFormat {\n%s\n}", indent(b.String(), 1))
 }
 
@@ -494,6 +504,7 @@ func (p PatternRow) String() string {
 
 	for i := range p {
 		b.WriteString(p[i].String())
+
 		if i < len(p)-1 {
 			b.WriteString(" | ")
 		}
@@ -508,14 +519,18 @@ func (p *Pattern) String() string {
 	b.WriteString("PatternFileFormat: ")
 	b.WriteString(p.PatternFileFormat.String())
 	b.WriteString("\nData: [\n")
+
 	for i, r := range p.Data {
 		fmt.Fprintf(&b, "Row %03d: ", i) // TODO: check if hex works better
 		b.WriteString(r.String())
+
 		if i < len(p.Data)-1 {
 			b.WriteString("\n")
 		}
 	}
+
 	b.WriteString("\n]")
+
 	return fmt.Sprintf("Pattern {\n%s\n}", indent(b.String(), 1))
 }
 
@@ -526,6 +541,7 @@ func (e *EnvPoint) String() string {
 	b.WriteString(strconv.Itoa(int(e.X)))
 	b.WriteString("\nY: ")
 	b.WriteString(strconv.Itoa(int(e.Y)))
+
 	return fmt.Sprintf("EnvPoint {\n%s\n}", indent(b.String(), 1))
 }
 
@@ -552,6 +568,7 @@ func (s *SampleHeader1) String() string {
 	b.WriteString(strconv.Itoa(int(s.ReservedP17)))
 	b.WriteString("\nName: ")
 	b.WriteString(string(s.Name[:]))
+
 	return fmt.Sprintf("SampleHeader1 {\n%s\n}", indent(b.String(), 1))
 }
 
@@ -561,13 +578,17 @@ func (s *SampleHeader) String() string {
 	b.WriteString("SampleHeader1: ")
 	b.WriteString(s.SampleHeader1.String())
 	b.WriteString("\nSampleData: [")
+
 	for i := range s.SampleData {
 		b.WriteString(strconv.Itoa(int(s.SampleData[i])))
+
 		if i < len(s.SampleData)-1 {
 			b.WriteString(", ")
 		}
 	}
+
 	b.WriteString("]")
+
 	return fmt.Sprintf("SampleHeader {\n%s\n}", indent(b.String(), 1))
 }
 
@@ -582,6 +603,7 @@ func (i *InstrumentHeader1) String() string {
 	b.WriteString(strconv.Itoa(int(i.Type)))
 	b.WriteString("\nSamplesCount: ")
 	b.WriteString(strconv.Itoa(int(i.SamplesCount)))
+
 	return fmt.Sprintf("InstrumentHeader1 {\n%s\n}", indent(b.String(), 1))
 }
 
@@ -593,26 +615,35 @@ func (i *InstrumentHeader) String() string {
 	b.WriteString("\nSampleHeaderSize: ")
 	b.WriteString(strconv.Itoa(int(i.SampleHeaderSize)))
 	b.WriteString("\nSampleNumber: [")
+
 	for j := range i.SampleNumber {
 		b.WriteString(strconv.Itoa(int(i.SampleNumber[j])))
+
 		if j < len(i.SampleNumber)-1 {
 			b.WriteString(", ")
 		}
 	}
+
 	b.WriteString("]\nVolEnv: [")
+
 	for j := range i.VolEnv {
 		b.WriteString(i.VolEnv[j].String())
+
 		if j < len(i.VolEnv)-1 {
 			b.WriteString(", ")
 		}
 	}
+
 	b.WriteString("]\nPanEnv: [")
+
 	for j := range i.PanEnv {
 		b.WriteString(i.PanEnv[j].String())
+
 		if j < len(i.PanEnv)-1 {
 			b.WriteString(", ")
 		}
 	}
+
 	b.WriteString("]\nVolPoints: ")
 	b.WriteString(strconv.Itoa(int(i.VolPoints)))
 	b.WriteString("\nPanPoints: ")
@@ -644,20 +675,27 @@ func (i *InstrumentHeader) String() string {
 	b.WriteString("\nVolumeFadeout: ")
 	b.WriteString(strconv.Itoa(int(i.VolumeFadeout)))
 	b.WriteString("\nReservedP241: [")
+
 	for j := range i.ReservedP241 {
 		b.WriteString(strconv.Itoa(int(i.ReservedP241[j])))
+
 		if j < len(i.ReservedP241)-1 {
 			b.WriteString(", ")
 		}
 	}
+
 	b.WriteString("]\nSamples: [")
+
 	for j := range i.Samples {
 		b.WriteString(i.Samples[j].String())
+
 		if j < len(i.Samples)-1 {
 			b.WriteString(", ")
 		}
 	}
+
 	b.WriteString("]")
+
 	return fmt.Sprintf("InstrumentHeader {\n%s\n}", indent(b.String(), 1))
 }
 
@@ -667,19 +705,26 @@ func (f *File) String() string {
 	b.WriteString("Head: ")
 	b.WriteString(f.Head.String())
 	b.WriteString("\nPatterns: [")
+
 	for i := range f.Patterns {
 		b.WriteString(f.Patterns[i].String())
+
 		if i < len(f.Patterns)-1 {
 			b.WriteString(", ")
 		}
 	}
+
 	b.WriteString("]\nInstruments: [")
+
 	for i := range f.Instruments {
 		b.WriteString(f.Instruments[i].String())
+
 		if i < len(f.Instruments)-1 {
 			b.WriteString(", ")
 		}
 	}
+
 	b.WriteString("]")
+
 	return fmt.Sprintf("File {\n%s\n}", indent(b.String(), 1))
 }

@@ -43,6 +43,7 @@ func (p *Parser) ReadUntil(delim byte) (line string, err error) {
 		if b[0] == delim {
 			break
 		}
+
 		buf.WriteByte(b[0])
 
 		p.offset++
@@ -85,7 +86,9 @@ func parseName(p *Parser, tf *TextFormat) error {
 	if len(name) > 20 {
 		return fmt.Errorf("Name too long: %s", name)
 	}
+
 	copy(tf.Name[:], name)
+
 	return nil
 }
 
@@ -154,7 +157,7 @@ func parseOrderTable(p *Parser, tf *TextFormat) error {
 }
 
 func parsePatternRows(p *Parser, numRows int, numChannels uint16) (Pattern, error) {
-	rows := make(Pattern, numRows)
+	_ = make(Pattern, numRows)
 
 	for i := range numRows {
 		if !p.SkipString("Row ") {

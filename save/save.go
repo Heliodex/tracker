@@ -335,7 +335,6 @@ func writeInstrumentHeaderPartial(w *bytes.Buffer, ih *InstrumentHeader) (err er
 
 func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 	// fmt.Println("writing2", w.Len())
-
 	if ih.Size < 29 {
 		return errors.New("unusually small instrument header size")
 	}
@@ -345,7 +344,6 @@ func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 	}
 
 	// fmt.Println("writing3", w.Len())
-
 	for _, s := range ih.Samples {
 		if err = binary.Write(w, binary.LittleEndian, &s.SampleHeader1); err != nil {
 			return
@@ -361,8 +359,8 @@ func writeInstrumentHeader(w *bytes.Buffer, ih *InstrumentHeader) (err error) {
 		} else {
 			sd = UnconvertSample8Bit(s.SampleData)
 		}
-		// fmt.Println("writing4", w.Len(), len(sd))
 
+		// fmt.Println("writing4", w.Len(), len(sd))
 		if _, err = w.Write(sd); err != nil {
 			return
 		}
@@ -424,7 +422,6 @@ func Write(w *bytes.Buffer, f *File) (err error) {
 	}
 
 	// fmt.Println("writing0", w.Len())
-
 	for _, p := range f.Patterns {
 		if err = writePatternHeader(w, &p.Header); err != nil {
 			return
@@ -442,7 +439,6 @@ func Write(w *bytes.Buffer, f *File) (err error) {
 	}
 
 	// fmt.Println("writing1", w.Len())
-
 	for _, ih := range f.Instruments {
 		if err = writeInstrumentHeader(w, &ih); err != nil {
 			return
