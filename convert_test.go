@@ -12,8 +12,8 @@ import (
 
 func convert16(data []uint8) error {
 	converted := load.ConvertSample16Bit(data)
-
 	og := save.UnconvertSample16Bit(converted)
+
 	if len(og) != len(data) {
 		return errors.New("length mismatch")
 	}
@@ -29,8 +29,8 @@ func convert16(data []uint8) error {
 
 func convert8(data []uint8) error {
 	converted := load.ConvertSample8Bit(data)
-
 	og := save.UnconvertSample8Bit(converted)
+
 	if len(og) != len(data) {
 		return errors.New("length mismatch")
 	}
