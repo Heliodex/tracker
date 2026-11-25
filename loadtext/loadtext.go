@@ -1,90 +1,115 @@
 // Package loadtext implements a text-based format for tracker music.
+//
+// A file looks like this:
+//
+//	Name: cool guy
+//	NumChannels: 2
+//	NumPatterns: 1
+//	Order: 0
+//
+//	Pattern 0
+//	Rows: 2
+//	Row 000: C-4 01 .. .. .. | ... .. .. .. ..
+//	Row 001: ### .. .. .. .. | A#5 02 .. .. ..
+//
+// Each channel cell is a note followed by four hex columns: instrument, volume, effect and effect parameter.
+// "..." is an empty note, "###" is note off, and ".." is a zero value.
 package loadtext
 
 import (
-	"bytes"
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/Heliodex/tracker/types"
 )
 
 type (
+	// ChannelData is a single cell of a pattern
 	ChannelData struct {
 		Note, Instrument, Volume, Effect, EffectParameter uint8
 	}
 
-	Parser struct {
-		reader io.Reader
-		offset int
-	}
-
+	// Pattern is a list of rows, each holding one ChannelData per channel
 	Pattern [][]ChannelData
 
+	// TextFormat is the text representation of a module
 	TextFormat struct {
-		Name [20]uint8
+		Name                     [20]uint8
 		NumPatterns, NumChannels uint16
-		OrderTable []uint8
-		Patterns []Pattern
+		OrderTable               []uint8
+		Patterns                 []Pattern
+	}
+
+	parser struct {
+		r    *bufio.Reader
+		line int
 	}
 )
 
-func (p *Parser) ReadUntil(delim byte) (line string, err error) {
-	var buf bytes.Buffer
+const (
+	maxChannels = 32
+	maxPatterns = 256
+	maxRows     = 256
+	maxOrder    = 256
 
-	for {
-		var b [1]byte
+	// Order entries 254 and 255 are skip and end markers in XM, not patterns
+	orderSkip = 254
+)
 
-		if _, err = p.reader.Read(b[:]); err != nil {
-			return "", err
-		}
-
-		if b[0] == delim {
-			break
-		}
-
-		buf.WriteByte(b[0])
-
-		p.offset++
+// readLine returns the next line without its line ending
+func (p *parser) readLine() (string, error) {
+	line, err := p.r.ReadString('\n')
+	if err != nil && (err != io.EOF || line == "") {
+		return "", err
 	}
 
-	return buf.String(), nil
+	p.line++
+
+	return strings.TrimRight(line, "\r\n"), nil
 }
 
-func (p *Parser) ReadLine() (line string, err error) {
-	return p.ReadUntil('\n')
-}
-
-func (p *Parser) SkipString(s string) (ok bool) {
-	ls := len(s)
-	toRead := make([]byte, ls)
-
-	if _, err := p.reader.Read(toRead); err != nil {
-		return
-	}
-
-	if !bytes.Equal(toRead, []byte(s)) {
-		return
-	}
-
-	p.offset += ls
-
-	return true
-}
-
-func parseName(p *Parser, tf *TextFormat) error {
-	if !p.SkipString("Name: ") {
-		return errors.New("expected 'Name: '")
-	}
-
-	name, err := p.ReadLine()
+// field reads a line of the form "Name: value"
+func (p *parser) field(name string) (string, error) {
+	line, err := p.readLine()
 	if err != nil {
-		return fmt.Errorf("failed to read Name: %w", err)
+		return "", fmt.Errorf("expected '%s:': %w", name, err)
 	}
 
-	if len(name) > 20 {
-		return fmt.Errorf("Name too long: %s", name)
+	rest, ok := strings.CutPrefix(line, name+":")
+	if !ok {
+		return "", fmt.Errorf("expected '%s:', got %q", name, line)
+	}
+
+	return strings.TrimPrefix(rest, " "), nil
+}
+
+// intField reads a "Name: value" line holding an integer between min and max inclusive
+func (p *parser) intField(name string, min, max int) (int, error) {
+	v, err := p.field(name)
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := strconv.Atoi(v)
+	if err != nil || n < min || n > max {
+		return 0, fmt.Errorf("invalid %s value: %q", name, v)
+	}
+
+	return n, nil
+}
+
+func parseName(p *parser, tf *TextFormat) error {
+	name, err := p.field("Name")
+	if err != nil {
+		return err
+	}
+
+	if len(name) > len(tf.Name) {
+		return fmt.Errorf("name too long: %q", name)
 	}
 
 	copy(tf.Name[:], name)
@@ -92,174 +117,195 @@ func parseName(p *Parser, tf *TextFormat) error {
 	return nil
 }
 
-func parseNumChannels(p *Parser, tf *TextFormat) error {
-	if !p.SkipString("NumChannels: ") {
-		return errors.New("expected 'NumChannels: '")
-	}
-
-	numChannelsLine, err := p.ReadLine()
+func parseOrder(p *parser, tf *TextFormat) error {
+	order, err := p.field("Order")
 	if err != nil {
-		return fmt.Errorf("failed to read NumChannels: %w", err)
+		return err
 	}
 
-	numChannels, err := strconv.Atoi(numChannelsLine)
-	if err != nil {
-		return fmt.Errorf("invalid NumChannels value: %s", numChannelsLine)
-	}
-
-	tf.NumChannels = uint16(numChannels)
-
-	return nil
-}
-
-func parseNumPatterns(p *Parser, tf *TextFormat) error {
-	if !p.SkipString("NumPatterns: ") {
-		return errors.New("expected 'NumPatterns: '")
-	}
-
-	numPatternsLine, err := p.ReadLine()
-	if err != nil {
-		return fmt.Errorf("failed to read NumPatterns: %w", err)
-	}
-
-	numPatterns, err := strconv.Atoi(numPatternsLine)
-	if err != nil {
-		return fmt.Errorf("invalid NumPatterns value: %s", numPatternsLine)
-	}
-
-	tf.NumPatterns = uint16(numPatterns)
-
-	return nil
-}
-
-func parseOrderTable(p *Parser, tf *TextFormat) error {
-	if !p.SkipString("Order: ") {
-		return errors.New("expected 'Order: '")
-	}
-
-	orderLine, err := p.ReadLine()
-	if err != nil {
-		return fmt.Errorf("failed to read Order: %w", err)
-	}
-
-	order := strings.SplitSeq(orderLine, " ")
-
-	for o := range order {
-		i, err := strconv.Atoi(o)
-		if err != nil {
-			return fmt.Errorf("invalid order value: %s", o)
+	for _, s := range strings.Fields(order) {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 || n > 255 {
+			return fmt.Errorf("invalid order value: %q", s)
 		}
 
-		tf.OrderTable = append(tf.OrderTable, uint8(i))
+		tf.OrderTable = append(tf.OrderTable, uint8(n))
+	}
+
+	if len(tf.OrderTable) > maxOrder {
+		return fmt.Errorf("order table too long: %d entries", len(tf.OrderTable))
 	}
 
 	return nil
 }
 
-func parsePatternRows(p *Parser, numRows int, numChannels uint16) (Pattern, error) {
+func parseHex(s string) (uint8, error) {
+	if s == ".." {
+		return 0, nil
+	}
+
+	v, err := strconv.ParseUint(s, 16, 8)
+	if err != nil {
+		return 0, fmt.Errorf("invalid hex value: %q", s)
+	}
+
+	return uint8(v), nil
+}
+
+func parseCell(s string) (ChannelData, error) {
+	fields := strings.Fields(s)
+	if len(fields) != 5 {
+		return ChannelData{}, fmt.Errorf("expected 5 columns, got %q", s)
+	}
+
+	note, err := types.ParseNote(fields[0])
+	if err != nil {
+		return ChannelData{}, err
+	}
+
+	var hex [4]uint8
+
+	for i, f := range fields[1:] {
+		if hex[i], err = parseHex(f); err != nil {
+			return ChannelData{}, err
+		}
+	}
+
+	return ChannelData{
+		Note:            uint8(note),
+		Instrument:      hex[0],
+		Volume:          hex[1],
+		Effect:          hex[2],
+		EffectParameter: hex[3],
+	}, nil
+}
+
+// parseRow parses the cells of a row, separated by " | ", one per channel
+func parseRow(s string, numChannels int) ([]ChannelData, error) {
+	cells := strings.Split(s, " | ")
+	if len(cells) != numChannels {
+		return nil, fmt.Errorf("expected %d channels, got %d", numChannels, len(cells))
+	}
+
+	row := make([]ChannelData, numChannels)
+
+	for c, cell := range cells {
+		cd, err := parseCell(cell)
+		if err != nil {
+			return nil, fmt.Errorf("channel %d: %w", c+1, err)
+		}
+
+		row[c] = cd
+	}
+
+	return row, nil
+}
+
+func parsePattern(p *parser, index, numChannels int) (Pattern, error) {
+	line, err := p.readLine()
+	if err != nil {
+		return nil, fmt.Errorf("expected 'Pattern %d': %w", index, err)
+	}
+
+	indexStr, ok := strings.CutPrefix(line, "Pattern ")
+	if n, err := strconv.Atoi(indexStr); !ok || err != nil || n != index {
+		return nil, fmt.Errorf("expected 'Pattern %d', got %q", index, line)
+	}
+
+	numRows, err := p.intField("Rows", 1, maxRows)
+	if err != nil {
+		return nil, err
+	}
+
 	pattern := make(Pattern, numRows)
 
-	for i := range numRows {
-		if !p.SkipString("Row ") {
-			return nil, errors.New("expected 'Row '")
-		}
-
-		rowIndexLine, err := p.ReadUntil(':')
+	for i := range pattern {
+		line, err := p.readLine()
 		if err != nil {
-			return nil, fmt.Errorf("failed to read row index: %w", err)
+			return nil, fmt.Errorf("expected 'Row %03d': %w", i, err)
 		}
 
-		rowIndex, err := strconv.Atoi(rowIndexLine)
+		before, cells, ok := strings.Cut(line, ": ")
+		rowStr, isRow := strings.CutPrefix(before, "Row ")
+		if n, err := strconv.Atoi(rowStr); !ok || !isRow || err != nil || n != i {
+			return nil, fmt.Errorf("expected 'Row %03d: ', got %q", i, line)
+		}
+
+		row, err := parseRow(cells, numChannels)
 		if err != nil {
-			return nil, fmt.Errorf("invalid row index: %s", rowIndexLine)
+			return nil, fmt.Errorf("row %d: %w", i, err)
 		}
 
-		if rowIndex != i {
-			return nil, fmt.Errorf("row index mismatch: expected %d, got %d", i, rowIndex)
-		}
-
-		if !p.SkipString(" ") {
-			return nil, errors.New("expected space after row index")
-		}
+		pattern[i] = row
 	}
 
 	return pattern, nil
 }
 
-func parsePatterns(p *Parser, tf *TextFormat) error {
-	for len(tf.OrderTable) > len(tf.Patterns) {
-		if !p.SkipString("\nPattern ") {
-			return errors.New("expected newline and 'Pattern '")
+func parsePatterns(p *parser, tf *TextFormat) error {
+	for i := range int(tf.NumPatterns) {
+		blank, err := p.readLine()
+		if err != nil || blank != "" {
+			return errors.New("expected blank line before pattern")
 		}
 
-		patternIndexLine, err := p.ReadLine()
+		pattern, err := parsePattern(p, i, int(tf.NumChannels))
 		if err != nil {
-			return fmt.Errorf("failed to read pattern index: %w", err)
+			return err
 		}
 
-		patternIndex, err := strconv.Atoi(patternIndexLine)
-		if err != nil {
-			return fmt.Errorf("invalid pattern index: %s", patternIndexLine)
-		}
-
-		if patternIndex != len(tf.Patterns) {
-			return fmt.Errorf("pattern index mismatch: expected %d, got %d", len(tf.Patterns), patternIndex)
-		}
-
-		if !p.SkipString("Rows: ") {
-			return errors.New("expected 'Rows: '")
-		}
-
-		rowsLine, err := p.ReadLine()
-		if err != nil {
-			return fmt.Errorf("failed to read number of rows: %w", err)
-		}
-
-		numRows, err := strconv.Atoi(rowsLine)
-		if err != nil {
-			return fmt.Errorf("invalid number of rows: %s", rowsLine)
-		}
-
-		rows, err := parsePatternRows(p, numRows, tf.NumChannels)
-		if err != nil {
-			return fmt.Errorf("failed to parse pattern rows: %w", err)
-		}
-
-		tf.Patterns = append(tf.Patterns, rows)
+		tf.Patterns = append(tf.Patterns, pattern)
 	}
 
 	return nil
 }
 
-func parseText(p *Parser, tf *TextFormat) (err error) {
-	if err = parseName(p, tf); err != nil {
-		return
+func parseText(p *parser) (*TextFormat, error) {
+	tf := &TextFormat{}
+
+	if err := parseName(p, tf); err != nil {
+		return nil, err
 	}
 
-	if err = parseNumChannels(p, tf); err != nil {
-		return
+	numChannels, err := p.intField("NumChannels", 1, maxChannels)
+	if err != nil {
+		return nil, err
 	}
 
-	if err = parseNumPatterns(p, tf); err != nil {
-		return
+	tf.NumChannels = uint16(numChannels)
+
+	numPatterns, err := p.intField("NumPatterns", 0, maxPatterns)
+	if err != nil {
+		return nil, err
 	}
 
-	if err = parseOrderTable(p, tf); err != nil {
-		return
+	tf.NumPatterns = uint16(numPatterns)
+
+	if err := parseOrder(p, tf); err != nil {
+		return nil, err
 	}
 
-	return parsePatterns(p, tf)
+	for _, o := range tf.OrderTable {
+		if o != orderSkip && o != 255 && int(o) >= numPatterns {
+			return nil, fmt.Errorf("order refers to missing pattern %d", o)
+		}
+	}
+
+	if err := parsePatterns(p, tf); err != nil {
+		return nil, err
+	}
+
+	return tf, nil
 }
 
-func ReadText(r io.Reader) (tf *TextFormat, err error) {
-	p := &Parser{
-		reader: r,
-	}
-	tf = &TextFormat{}
+// ReadText reads a text-format module from r
+func ReadText(r io.Reader) (*TextFormat, error) {
+	p := &parser{r: bufio.NewReader(r)}
 
-	if err = parseText(p, tf); err != nil {
-		return nil, fmt.Errorf("offset %d: %w", p.offset, err)
+	tf, err := parseText(p)
+	if err != nil {
+		return nil, fmt.Errorf("line %d: %w", p.line, err)
 	}
 
-	return
+	return tf, nil
 }

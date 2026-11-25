@@ -21,10 +21,13 @@ func main() {
 	// fmt.Println(f)
 	testcontent := `
 Name: cool guy
+NumChannels: 1
 NumPatterns: 1
 Order: 0
 
 Pattern 0
+Rows: 1
+Row 000: C-4 01 .. .. ..
 `[1:]
 
 	tf, err := loadtext.ReadText(bytes.NewBuffer([]byte(testcontent)))
