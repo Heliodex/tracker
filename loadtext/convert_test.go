@@ -96,3 +96,63 @@ func TestXMRoundTrip(t *testing.T) {
 		t.Errorf("output mismatch:\n%s\nwant:\n%s", got, sample)
 	}
 }
+
+// TestXMRoundTripInstruments checks instruments and samples survive text -> XM bytes -> text
+func TestXMRoundTripInstruments(t *testing.T) {
+	for name, sixteen := range map[string]bool{"8-bit": false, "16-bit": true} {
+		t.Run(name, func(t *testing.T) {
+			text := withInstrument()
+
+			tf, err := ReadText(strings.NewReader(text))
+			if err != nil {
+				t.Fatalf("ReadText: %v", err)
+			}
+
+			s := &tf.Instruments[0].Samples[0]
+			s.Sixteen = sixteen
+			s.Data = make([]uint8, 200)
+
+			for i := range s.Data {
+				s.Data[i] = uint8(i * 7)
+			}
+
+			f, err := tf.ToFile()
+			if err != nil {
+				t.Fatalf("ToFile: %v", err)
+			}
+
+			var xm bytes.Buffer
+
+			if err := save.Write(&xm, f); err != nil {
+				t.Fatalf("save.Write: %v", err)
+			}
+
+			f2, err := load.Read(&xm)
+			if err != nil {
+				t.Fatalf("load.Read: %v", err)
+			}
+
+			tf2, err := FromFile(f2)
+			if err != nil {
+				t.Fatalf("FromFile: %v", err)
+			}
+
+			if got := tf2.Instruments[0].Samples[0].Data; !bytes.Equal(got, s.Data) {
+				t.Errorf("sample data changed in the round trip")
+			}
+
+			// the WAV path is not in the XM file, so the exporter sets it again
+			tf2.Instruments[0].Samples[0].File = s.File
+
+			var out bytes.Buffer
+
+			if err := WriteText(&out, tf2); err != nil {
+				t.Fatalf("WriteText: %v", err)
+			}
+
+			if got := out.String(); got != text {
+				t.Errorf("output mismatch:\n%s\nwant:\n%s", got, text)
+			}
+		})
+	}
+}
