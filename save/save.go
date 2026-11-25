@@ -423,13 +423,21 @@ func Write(w *bytes.Buffer, f *File) (err error) {
 
 	// fmt.Println("writing0", w.Len())
 	for _, p := range f.Patterns {
-		if err = writePatternHeader(w, &p.Header); err != nil {
-			return
-		}
-
 		var packed []byte
 
 		if packed, err = p.Pack(int(f.Head.NumChannels)); err != nil {
+			return
+		}
+
+		if len(packed) > 0xFFFF {
+			return errors.New("packed pattern data too large")
+		}
+
+		// the header records the packed size, so it is only known once the pattern is packed
+		ph := p.Header
+		ph.PackedPatternDataSize = uint16(len(packed))
+
+		if err = writePatternHeader(w, &ph); err != nil {
 			return
 		}
 
