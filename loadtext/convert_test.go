@@ -9,42 +9,14 @@ import (
 	"github.com/Heliodex/tracker/save"
 )
 
-// TestXMRoundTrip checks text -> XM bytes -> text gives back the same text
-func TestXMRoundTrip(t *testing.T) {
-	tf, err := ReadText(strings.NewReader(sample))
-	if err != nil {
-		t.Fatalf("ReadText: %v", err)
+func TestToFileRejectsBadPatternCount(t *testing.T) {
+	tf := &TextFormat{
+		NumPatterns: 2,
+		NumChannels: 1,
 	}
 
-	f, err := tf.ToFile()
-	if err != nil {
-		t.Fatalf("ToFile: %v", err)
-	}
-
-	var xm bytes.Buffer
-
-	if err := save.Write(&xm, f); err != nil {
-		t.Fatalf("save.Write: %v", err)
-	}
-
-	f2, err := load.Read(&xm)
-	if err != nil {
-		t.Fatalf("load.Read: %v", err)
-	}
-
-	tf2, err := FromFile(f2)
-	if err != nil {
-		t.Fatalf("FromFile: %v", err)
-	}
-
-	var text bytes.Buffer
-
-	if err := WriteText(&text, tf2); err != nil {
-		t.Fatalf("WriteText: %v", err)
-	}
-
-	if got := text.String(); got != sample {
-		t.Errorf("output mismatch:\n%s\nwant:\n%s", got, sample)
+	if _, err := tf.ToFile(); err == nil {
+		t.Error("expected an error")
 	}
 }
 
@@ -86,10 +58,41 @@ func TestXMPatternsSurviveLoad(t *testing.T) {
 	}
 }
 
-func TestToFileRejectsBadPatternCount(t *testing.T) {
-	tf := &TextFormat{NumChannels: 1, NumPatterns: 2}
+// TestXMRoundTrip checks text -> XM bytes -> text gives back the same text
+func TestXMRoundTrip(t *testing.T) {
+	tf, err := ReadText(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf("ReadText: %v", err)
+	}
 
-	if _, err := tf.ToFile(); err == nil {
-		t.Error("expected an error")
+	f, err := tf.ToFile()
+	if err != nil {
+		t.Fatalf("ToFile: %v", err)
+	}
+
+	var xm bytes.Buffer
+
+	if err := save.Write(&xm, f); err != nil {
+		t.Fatalf("save.Write: %v", err)
+	}
+
+	f2, err := load.Read(&xm)
+	if err != nil {
+		t.Fatalf("load.Read: %v", err)
+	}
+
+	tf2, err := FromFile(f2)
+	if err != nil {
+		t.Fatalf("FromFile: %v", err)
+	}
+
+	var text bytes.Buffer
+
+	if err := WriteText(&text, tf2); err != nil {
+		t.Fatalf("WriteText: %v", err)
+	}
+
+	if got := text.String(); got != sample {
+		t.Errorf("output mismatch:\n%s\nwant:\n%s", got, sample)
 	}
 }

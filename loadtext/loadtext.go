@@ -38,14 +38,14 @@ type (
 
 	// TextFormat is the text representation of a module
 	TextFormat struct {
-		Name                     [20]uint8
+		Name [20]uint8
 		NumPatterns, NumChannels uint16
-		OrderTable               []uint8
-		Patterns                 []Pattern
+		OrderTable []uint8
+		Patterns []Pattern
 	}
 
 	parser struct {
-		r    *bufio.Reader
+		r *bufio.Reader
 		line int
 	}
 )
@@ -53,91 +53,12 @@ type (
 const (
 	maxChannels = 32
 	maxPatterns = 256
-	maxRows     = 256
-	maxOrder    = 256
+	maxRows = 256
+	maxOrder = 256
 
 	// Order entries 254 and 255 are skip and end markers in XM, not patterns
 	orderSkip = 254
 )
-
-// readLine returns the next line without its line ending
-func (p *parser) readLine() (string, error) {
-	line, err := p.r.ReadString('\n')
-	if err != nil && (err != io.EOF || line == "") {
-		return "", err
-	}
-
-	p.line++
-
-	return strings.TrimRight(line, "\r\n"), nil
-}
-
-// field reads a line of the form "Name: value"
-func (p *parser) field(name string) (string, error) {
-	line, err := p.readLine()
-	if err != nil {
-		return "", fmt.Errorf("expected '%s:': %w", name, err)
-	}
-
-	rest, ok := strings.CutPrefix(line, name+":")
-	if !ok {
-		return "", fmt.Errorf("expected '%s:', got %q", name, line)
-	}
-
-	return strings.TrimPrefix(rest, " "), nil
-}
-
-// intField reads a "Name: value" line holding an integer between min and max inclusive
-func (p *parser) intField(name string, min, max int) (int, error) {
-	v, err := p.field(name)
-	if err != nil {
-		return 0, err
-	}
-
-	n, err := strconv.Atoi(v)
-	if err != nil || n < min || n > max {
-		return 0, fmt.Errorf("invalid %s value: %q", name, v)
-	}
-
-	return n, nil
-}
-
-func parseName(p *parser, tf *TextFormat) error {
-	name, err := p.field("Name")
-	if err != nil {
-		return err
-	}
-
-	if len(name) > len(tf.Name) {
-		return fmt.Errorf("name too long: %q", name)
-	}
-
-	copy(tf.Name[:], name)
-
-	return nil
-}
-
-func parseOrder(p *parser, tf *TextFormat) error {
-	order, err := p.field("Order")
-	if err != nil {
-		return err
-	}
-
-	for _, s := range strings.Fields(order) {
-		n, err := strconv.Atoi(s)
-		if err != nil || n < 0 || n > 255 {
-			return fmt.Errorf("invalid order value: %q", s)
-		}
-
-		tf.OrderTable = append(tf.OrderTable, uint8(n))
-	}
-
-	if len(tf.OrderTable) > maxOrder {
-		return fmt.Errorf("order table too long: %d entries", len(tf.OrderTable))
-	}
-
-	return nil
-}
 
 func parseHex(s string) (uint8, error) {
 	if s == ".." {
@@ -172,10 +93,10 @@ func parseCell(s string) (ChannelData, error) {
 	}
 
 	return ChannelData{
-		Note:            uint8(note),
-		Instrument:      hex[0],
-		Volume:          hex[1],
-		Effect:          hex[2],
+		Note: uint8(note),
+		Instrument: hex[0],
+		Volume: hex[1],
+		Effect: hex[2],
 		EffectParameter: hex[3],
 	}, nil
 }
@@ -199,6 +120,85 @@ func parseRow(s string, numChannels int) ([]ChannelData, error) {
 	}
 
 	return row, nil
+}
+
+// readLine returns the next line without its line ending
+func (p *parser) readLine() (string, error) {
+	line, err := p.r.ReadString('\n')
+	if err != nil && (err != io.EOF || line == "") {
+		return "", err
+	}
+
+	p.line++
+
+	return strings.TrimRight(line, "\r\n"), nil
+}
+
+// field reads a line of the form "Name: value"
+func (p *parser) field(name string) (string, error) {
+	line, err := p.readLine()
+	if err != nil {
+		return "", fmt.Errorf("expected '%s:': %w", name, err)
+	}
+
+	rest, ok := strings.CutPrefix(line, name+":")
+	if !ok {
+		return "", fmt.Errorf("expected '%s:', got %q", name, line)
+	}
+
+	return strings.TrimPrefix(rest, " "), nil
+}
+
+func parseName(p *parser, tf *TextFormat) error {
+	name, err := p.field("Name")
+	if err != nil {
+		return err
+	}
+
+	if len(name) > len(tf.Name) {
+		return fmt.Errorf("name too long: %q", name)
+	}
+
+	copy(tf.Name[:], name)
+
+	return nil
+}
+
+func parseOrder(p *parser, tf *TextFormat) error {
+	order, err := p.field("Order")
+	if err != nil {
+		return err
+	}
+
+	for s := range strings.FieldsSeq(order) {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 || n > 255 {
+			return fmt.Errorf("invalid order value: %q", s)
+		}
+
+		tf.OrderTable = append(tf.OrderTable, uint8(n))
+	}
+
+	if len(tf.OrderTable) > maxOrder {
+		return fmt.Errorf("order table too long: %d entries", len(tf.OrderTable))
+	}
+
+	return nil
+}
+
+// intField reads a "Name: value" line holding an integer between min and max inclusive
+func (p *parser) intField(name string, min, max int) (int, error) {
+	v, err := p.field(name)
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := strconv.Atoi(v)
+	if err != nil || n < min || n > max {
+		return 0, fmt.Errorf("invalid %s value: %q", name, v)
+	}
+
+	return n, nil
 }
 
 func parsePattern(p *parser, index, numChannels int) (Pattern, error) {
@@ -227,6 +227,7 @@ func parsePattern(p *parser, index, numChannels int) (Pattern, error) {
 
 		before, cells, ok := strings.Cut(line, ": ")
 		rowStr, isRow := strings.CutPrefix(before, "Row ")
+
 		if n, err := strconv.Atoi(rowStr); !ok || !isRow || err != nil || n != i {
 			return nil, fmt.Errorf("expected 'Row %03d: ', got %q", i, line)
 		}
@@ -300,7 +301,9 @@ func parseText(p *parser) (*TextFormat, error) {
 
 // ReadText reads a text-format module from r
 func ReadText(r io.Reader) (*TextFormat, error) {
-	p := &parser{r: bufio.NewReader(r)}
+	p := &parser{
+		r: bufio.NewReader(r),
+	}
 
 	tf, err := parseText(p)
 	if err != nil {

@@ -37,7 +37,10 @@ func TestReadText(t *testing.T) {
 
 	p := tf.Patterns[0]
 
-	if got := p[0][0]; got != (ChannelData{Note: 49, Instrument: 1}) {
+	if got := p[0][0]; got != (ChannelData{
+		Note: 49,
+		Instrument: 1,
+	}) {
 		t.Errorf("row 0 channel 0: got %+v", got)
 	}
 
@@ -49,17 +52,23 @@ func TestReadText(t *testing.T) {
 		t.Errorf("row 1 channel 0: want note off, got %+v", got)
 	}
 
-	if got := p[1][1]; got != (ChannelData{Note: 71, Instrument: 2, Volume: 0x40, Effect: 0x0F, EffectParameter: 0x1F}) {
+	if got := p[1][1]; got != (ChannelData{
+		Note: 71,
+		Instrument: 2,
+		Volume: 0x40,
+		Effect: 0x0F,
+		EffectParameter: 0x1F,
+	}) {
 		t.Errorf("row 1 channel 1: got %+v", got)
 	}
 }
 
 func TestReadTextErrors(t *testing.T) {
 	tests := map[string]string{
-		"missing channel":    strings.Replace(sample, "| A#5", "A#5", 1),
-		"bad note":           strings.Replace(sample, "C-4", "H-4", 1),
-		"bad hex":            strings.Replace(sample, "02 40", "0G 40", 1),
-		"row out of order":   strings.Replace(sample, "Row 001", "Row 002", 1),
+		"missing channel": strings.Replace(sample, "| A#5", "A#5", 1),
+		"bad note": strings.Replace(sample, "C-4", "H-4", 1),
+		"bad hex": strings.Replace(sample, "02 40", "0G 40", 1),
+		"row out of order": strings.Replace(sample, "Row 001", "Row 002", 1),
 		"order out of range": strings.Replace(sample, "Order: 0", "Order: 3", 1),
 		"missing blank line": strings.Replace(sample, "\n\nPattern", "\nPattern", 1),
 	}

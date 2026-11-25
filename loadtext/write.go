@@ -52,7 +52,6 @@ func WriteText(w io.Writer, tf *TextFormat) error {
 	fmt.Fprintf(&b, "Name: %s\n", name)
 	fmt.Fprintf(&b, "NumChannels: %d\n", tf.NumChannels)
 	fmt.Fprintf(&b, "NumPatterns: %d\n", tf.NumPatterns)
-
 	b.WriteString("Order:")
 
 	for _, o := range tf.OrderTable {
