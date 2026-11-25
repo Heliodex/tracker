@@ -1,6 +1,7 @@
 package loadtext
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -69,5 +70,22 @@ func TestReadTextErrors(t *testing.T) {
 				t.Errorf("expected an error")
 			}
 		})
+	}
+}
+
+func TestWriteTextRoundTrip(t *testing.T) {
+	tf, err := ReadText(strings.NewReader(sample))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var b bytes.Buffer
+
+	if err := WriteText(&b, tf); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := b.String(); got != sample {
+		t.Errorf("output mismatch:\n%s\nwant:\n%s", got, sample)
 	}
 }
