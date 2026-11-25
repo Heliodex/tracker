@@ -13,20 +13,26 @@ import (
 
 	"github.com/Heliodex/tracker/load"
 	"github.com/Heliodex/tracker/loadtext"
+	"github.com/Heliodex/tracker/project"
 	"github.com/Heliodex/tracker/save"
 )
 
 const usage = `usage:
-  tracker export [-o out.txt] [-f] module.xm
-      convert an XM module to the text format (stdout by default)
+  tracker export [-d dir] [-o out.txt] [-f] module.xm
+      convert an XM module to the text format
+      modules with instruments become a folder: dir/song.txt and dir/samples/*.wav
+      (dir defaults to the module name), other modules print the text to stdout
   tracker build [-o out.xm] [-f] module.txt
-      convert a text module to XM (module.xm by default)
+  tracker build [-o out.xm] [-f] folder
+      convert a text module, or a folder holding song.txt, to XM (module.xm by default)
 
 Flags:
+  -d DIR    folder to export a module with instruments into
   -o FILE   output file, "-" for stdout
-  -f        overwrite the output file if it exists
+  -f        overwrite existing files
 
-Use "-" as the input to read from stdin. Reading from stdin with build needs -o.
+Use "-" as the input to read from stdin. Reading from stdin needs -o with build,
+and -d with export when the module has instruments.
 `
 
 // errUsage is returned for bad command lines, after the usage text has been printed
@@ -67,6 +73,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 
 type options struct {
 	out string
+	dir string
 	force bool
 }
 
@@ -75,7 +82,8 @@ func newFlagSet(name string, stderr io.Writer, o *options) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.StringVar(&o.out, "o", "", `output file, "-" for stdout`)
-	fs.BoolVar(&o.force, "f", false, "overwrite the output file if it exists")
+	fs.StringVar(&o.dir, "d", "", "folder for a module with instruments")
+	fs.BoolVar(&o.force, "f", false, "overwrite existing files")
 
 	return fs
 }
@@ -99,7 +107,7 @@ func parseArgs(fs *flag.FlagSet, args []string) ([]string, error) {
 	}
 }
 
-// parseOne parses a command line that takes exactly one input file
+// parseOne parses a command line that takes exactly one input
 func parseOne(name string, args []string, stderr io.Writer, o *options) (string, error) {
 	fs := newFlagSet(name, stderr, o)
 
@@ -109,7 +117,7 @@ func parseOne(name string, args []string, stderr io.Writer, o *options) (string,
 	}
 
 	if len(positional) != 1 {
-		fmt.Fprintf(stderr, "tracker %s: expected one input file, got %d\n\n%s", name, len(positional), usage)
+		fmt.Fprintf(stderr, "tracker %s: expected one input, got %d\n\n%s", name, len(positional), usage)
 		return "", errUsage
 	}
 
@@ -160,8 +168,26 @@ func export(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return fmt.Errorf("%s: %w", in, err)
 	}
 
-	if n := f.Head.NumInstruments; n > 0 {
-		fmt.Fprintf(stderr, "warning: %d instruments dropped, the text format does not store them\n", n)
+	if f.Head.NumInstruments > 0 {
+		if o.out != "" {
+			return errors.New("a module with instruments is exported to a folder, use -d instead of -o")
+		}
+
+		dir := o.dir
+
+		if dir == "" {
+			if in == "-" {
+				return errors.New("exporting from stdin needs -d")
+			}
+
+			dir = strings.TrimSuffix(in, filepath.Ext(in))
+		}
+
+		return project.Export(f, dir, o.force)
+	}
+
+	if o.dir != "" {
+		return errors.New("-d is only used for a module with instruments, use -o for text")
 	}
 
 	tf, err := loadtext.FromFile(f)
@@ -190,6 +216,13 @@ func build(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return err
 	}
 
+	// a folder means its song.txt
+	if in != "-" {
+		if info, err := os.Stat(in); err == nil && info.IsDir() {
+			in = filepath.Join(in, project.SongFile)
+		}
+	}
+
 	out := o.out
 
 	if out == "" {
@@ -209,12 +242,13 @@ func build(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	tf, err := loadtext.ReadText(bytes.NewReader(data))
-	if err != nil {
-		return fmt.Errorf("%s: %w", in, err)
+	// samples are read relative to the text file, or the current folder for stdin
+	dir := "."
+	if in != "-" {
+		dir = filepath.Dir(in)
 	}
 
-	f, err := tf.ToFile()
+	f, err := project.Build(bytes.NewReader(data), dir)
 	if err != nil {
 		return fmt.Errorf("%s: %w", in, err)
 	}
