@@ -157,7 +157,7 @@ func parseOrderTable(p *Parser, tf *TextFormat) error {
 }
 
 func parsePatternRows(p *Parser, numRows int, numChannels uint16) (Pattern, error) {
-	_ = make(Pattern, numRows)
+	pattern := make(Pattern, numRows)
 
 	for i := range numRows {
 		if !p.SkipString("Row ") {
@@ -183,7 +183,7 @@ func parsePatternRows(p *Parser, numRows int, numChannels uint16) (Pattern, erro
 		}
 	}
 
-	return
+	return pattern, nil
 }
 
 func parsePatterns(p *Parser, tf *TextFormat) error {
@@ -233,6 +233,10 @@ func parsePatterns(p *Parser, tf *TextFormat) error {
 
 func parseText(p *Parser, tf *TextFormat) (err error) {
 	if err = parseName(p, tf); err != nil {
+		return
+	}
+
+	if err = parseNumChannels(p, tf); err != nil {
 		return
 	}
 
