@@ -3,6 +3,8 @@
 // Build it from anywhere inside the repository with go run ./tracks/track4, or with tracker build.
 package main
 
+// pixel rush – MiMo V2.6 Flash
+
 import (
 	"log"
 	"path/filepath"

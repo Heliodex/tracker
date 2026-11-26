@@ -3,6 +3,8 @@
 // Build it from anywhere inside the repository with go run ./tracks/track6, or with tracker build.
 package main
 
+// blue hour – Hy4 Flash
+
 import (
 	"log"
 	"path/filepath"
