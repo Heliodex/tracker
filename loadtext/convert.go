@@ -157,17 +157,15 @@ func sampleToXM(s *Sample) (types.SampleHeader, error) {
 	}
 
 	return types.SampleHeader{
-		SampleHeader1: types.SampleHeader1{
-			Length: uint32(len(s.Data)),
-			LoopStart: s.LoopStart * bytesPerFrame,
-			LoopLength: s.LoopLength * bytesPerFrame,
-			Volume: s.Volume,
-			Finetune: s.Finetune,
-			Flags: flags,
-			Panning: s.Panning,
-			RelativeNoteNumber: s.RelativeNote,
-			Name: s.Name,
-		},
+		Length: uint32(len(s.Data)),
+		LoopStart: s.LoopStart * bytesPerFrame,
+		LoopLength: s.LoopLength * bytesPerFrame,
+		Volume: s.Volume,
+		Finetune: s.Finetune,
+		Flags: flags,
+		Panning: s.Panning,
+		RelativeNoteNumber: s.RelativeNote,
+		Name: s.Name,
 		SampleData: s.Data,
 	}, nil
 }
@@ -175,12 +173,10 @@ func sampleToXM(s *Sample) (types.SampleHeader, error) {
 // instrumentToXM converts an instrument to its XM header and samples
 func instrumentToXM(ins *Instrument) (types.InstrumentHeader, error) {
 	h := types.InstrumentHeader{
-		InstrumentHeader1: types.InstrumentHeader1{
-			Size: xmInstrumentSize,
-			Name: ins.Name,
-			Type: ins.Type,
-			SamplesCount: uint16(len(ins.Samples)),
-		},
+		Size: xmInstrumentSize,
+		Name: ins.Name,
+		Type: ins.Type,
+		SamplesCount: uint16(len(ins.Samples)),
 		SampleHeaderSize: xmSampleHeaderSize,
 		SampleNumber: ins.Keymap,
 		VolPoints: uint8(len(ins.VolPoints)),
@@ -304,12 +300,10 @@ func (tf *TextFormat) ToFile() (*types.File, error) {
 		}
 
 		f.Patterns = append(f.Patterns, types.Pattern{
-			PatternFileFormat: types.PatternFileFormat{
-				Header: types.PatternHeader{
-					PatternHeaderLength: 9,
-					PackingType: 0,
-					NumRows: uint16(len(pattern)),
-				},
+			Header: types.PatternHeader{
+				PatternHeaderLength: 9,
+				PackingType: 0,
+				NumRows: uint16(len(pattern)),
 			},
 			Data: rows,
 		})

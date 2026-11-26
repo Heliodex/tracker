@@ -159,7 +159,12 @@ func (ins *Instrument) toText() (loadtext.Instrument, error) {
 	// the envelope is always on, so a note off fades out, as it does in the original trackers
 	points := ins.Envelope
 	if len(points) == 0 {
-		points = []Point{{X: 0, Y: 64}}
+		points = []Point{
+			{
+				X: 0,
+				Y: 64,
+			},
+		}
 	}
 
 	if len(points) > 12 {
@@ -178,7 +183,6 @@ func (ins *Instrument) toText() (loadtext.Instrument, error) {
 	}
 
 	li.VolFlags = 1
-
 	sample := loadtext.Sample{
 		Volume: uint8(volume),
 		Panning: uint8(pan),
