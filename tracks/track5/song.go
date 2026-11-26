@@ -497,7 +497,7 @@ func main() {
 			Name: "vinyl",
 			Recipe: vinylRecipe,
 			Loop: true,
-			Volume: 6,
+			Volume: 3,
 			Pan: 128,
 		}),
 	}
