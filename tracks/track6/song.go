@@ -7,6 +7,7 @@ import (
 	"log"
 	"path/filepath"
 	"runtime"
+	"slices"
 
 	"github.com/Heliodex/tracker/song"
 	"github.com/Heliodex/tracker/types"
@@ -86,11 +87,11 @@ Frames: 400
 Bits: 16
 Layer: noise 3500 1
 `
-	kickRecipe = `# punchy low kick
+	kickRecipe = `# punchy low kick, tuned to C-4 so C-2 lands around 55 Hz
 Frames: 1600
 Bits: 16
-Layer: sine 55 1
-Layer: sine 110 0.25
+Layer: sine 220 1
+Layer: sine 440 0.25
 `
 	leadRecipe = `# singing saw lead, tuned to C-4
 Frames: 256
@@ -322,8 +323,12 @@ func (w pattern) drums(b, style int) {
 		w.p.Hit(at(b, 11), chSnare, "C-4", w.k.snare, withVol(0x28)...)
 	}
 
+	openRows := []int{}
+
 	if style == 1 || style == 2 {
-		for i, r := range []int{2, 6, 10, 14} {
+		openRows = []int{2, 6, 10, 14}
+
+		for i, r := range openRows {
 			pan := 0x30
 
 			if i%2 == 1 {
@@ -341,6 +346,10 @@ func (w pattern) drums(b, style int) {
 	}
 
 	for i, r := 0, 0; r < song.RowsPerBar; i, r = i+1, r+step {
+		if slices.Contains(openRows, r) {
+			continue
+		}
+
 		vol := 0x24
 
 		if r%4 == 0 {
