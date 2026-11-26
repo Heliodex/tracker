@@ -58,7 +58,6 @@ const (
 	// swung 8ths behind a laid-back groove
 	speed = 6
 	tempo = 84
-
 	leadRecipe = `# soft sine lead for sleepy melodies, tuned to C-4
 Frames: 256
 Bits: 16
@@ -116,26 +115,37 @@ var (
 	loop = []chordBar{
 		{
 			name: "Dm9",
-			lo: [2]string{"D-3", "F-3"}, hi: [2]string{"C-4", "E-4"},
-			bass: "D-2", fifth: "A-2", octave: "D-3",
+			lo: [2]string{"D-3", "F-3"},
+			hi: [2]string{"C-4", "E-4"},
+			bass: "D-2",
+			fifth: "A-2",
+			octave: "D-3",
 		},
 		{
 			name: "G13",
-			lo: [2]string{"D-3", "F-3"}, hi: [2]string{"B-3", "E-4"},
-			bass: "G-1", fifth: "D-2", octave: "G-2",
+			lo: [2]string{"D-3", "F-3"},
+			hi: [2]string{"B-3", "E-4"},
+			bass: "G-1",
+			fifth: "D-2",
+			octave: "G-2",
 		},
 		{
 			name: "Cmaj9",
-			lo: [2]string{"E-3", "G-3"}, hi: [2]string{"B-3", "D-4"},
-			bass: "C-2", fifth: "G-2", octave: "C-3",
+			lo: [2]string{"E-3", "G-3"},
+			hi: [2]string{"B-3", "D-4"},
+			bass: "C-2",
+			fifth: "G-2",
+			octave: "C-3",
 		},
 		{
 			name: "A7",
-			lo: [2]string{"C#3", "G-3"}, hi: [2]string{"B-3", "E-4"},
-			bass: "A-1", fifth: "E-2", octave: "A-2",
+			lo: [2]string{"C#3", "G-3"},
+			hi: [2]string{"B-3", "E-4"},
+			bass: "A-1",
+			fifth: "E-2",
+			octave: "A-2",
 		},
 	}
-
 	verseLead = [][]hit{
 		{{0, "A-4"}, {6, "C-5"}, {10, "D-5"}},
 		{{0, "B-4"}, {8, "D-5"}},
@@ -154,12 +164,12 @@ var (
 		{{0, "G-4"}, {8, "B-4"}},
 		{{0, "A-4"}, {4, "B-4"}, {8, "C-5"}, {12, "B-4"}},
 	}
-	outroLead = [][]hit{
-		{{0, "A-4"}, {6, "C-5"}, {10, "D-5"}},
-		{{0, "E-5"}},
-		{},
-		{},
-	}
+	outroLead = [][]hit{{{0, "A-4"}, {6, "C-5"}, {10, "D-5"}}, {{0, "E-5"}}, {}, {}}
+	verseBassMoves = map[int]string{0: "root", 7: "root", 10: "fifth"}
+	hookBassMoves = map[int]string{0: "root", 3: "octave", 7: "root", 10: "fifth", 12: "octave"}
+	breakBassMoves = map[int]string{0: "root", 10: "fifth"}
+	verseKicks = []int{0, 7, 10}
+	hookKicks = []int{0, 7, 10, 14}
 )
 
 // at returns the row at offset r within bar b
@@ -187,29 +197,6 @@ func withVol(vol int, extra ...song.Opt) []song.Opt {
 	return append(opts, extra...)
 }
 
-// keys plays the Rhodes voicing for a bar, with a soft anticipation stab on the swung "and" of four
-func (w pattern) keys(b int, cb chordBar, vol, stabVol int) {
-	for _, note := range cb.lo {
-		w.p.Hit(at(b, 0), chKeysLo, note, w.k.keys, withVol(vol, song.Pan(0x60))...)
-	}
-
-	for _, note := range cb.hi {
-		w.p.Hit(at(b, 0), chKeysHi, note, w.k.keys, withVol(vol, song.Pan(0xA0))...)
-	}
-
-	if stabVol == 0 {
-		return
-	}
-
-	for _, note := range cb.lo {
-		w.p.Hit(at(b, 14), chKeysLo, note, w.k.keys, withVol(stabVol, song.Pan(0x60))...)
-	}
-
-	for _, note := range cb.hi {
-		w.p.Hit(at(b, 14), chKeysHi, note, w.k.keys, withVol(stabVol, song.Pan(0xA0))...)
-	}
-}
-
 // bassline plays the bass movement for a bar: rows mapped to root, fifth or octave
 func (w pattern) bassline(b int, cb chordBar, moves map[int]string, vol int) {
 	for r, which := range moves {
@@ -227,12 +214,6 @@ func (w pattern) bassline(b int, cb chordBar, moves map[int]string, vol int) {
 		w.p.Hit(at(b, r), chBass, note, w.k.bass, withVol(vol)...)
 	}
 }
-
-var (
-	verseBassMoves = map[int]string{0: "root", 7: "root", 10: "fifth"}
-	hookBassMoves = map[int]string{0: "root", 3: "octave", 7: "root", 10: "fifth", 12: "octave"}
-	breakBassMoves = map[int]string{0: "root", 10: "fifth"}
-)
 
 // drums plays the boom-bap for a bar: laid-back kick, backbeat snare, swung hats
 func (w pattern) drums(b int, kicks []int, ghost, hats bool) {
@@ -269,10 +250,28 @@ func (w pattern) drums(b int, kicks []int, ghost, hats bool) {
 	}
 }
 
-var (
-	verseKicks = []int{0, 7, 10}
-	hookKicks = []int{0, 7, 10, 14}
-)
+// keys plays the Rhodes voicing for a bar, with a soft anticipation stab on the swung "and" of four
+func (w pattern) keys(b int, cb chordBar, vol, stabVol int) {
+	for _, note := range cb.lo {
+		w.p.Hit(at(b, 0), chKeysLo, note, w.k.keys, withVol(vol, song.Pan(0x60))...)
+	}
+
+	for _, note := range cb.hi {
+		w.p.Hit(at(b, 0), chKeysHi, note, w.k.keys, withVol(vol, song.Pan(0xA0))...)
+	}
+
+	if stabVol == 0 {
+		return
+	}
+
+	for _, note := range cb.lo {
+		w.p.Hit(at(b, 14), chKeysLo, note, w.k.keys, withVol(stabVol, song.Pan(0x60))...)
+	}
+
+	for _, note := range cb.hi {
+		w.p.Hit(at(b, 14), chKeysHi, note, w.k.keys, withVol(stabVol, song.Pan(0xA0))...)
+	}
+}
 
 // openHats breathes on the swung offbeats of the hook
 func (w pattern) openHats(b int) {
@@ -292,6 +291,73 @@ func (w pattern) play(ch, b int, hits []hit, ins *song.Instrument, vol int, extr
 	for _, h := range hits {
 		w.p.Hit(at(b, h.row), ch, h.note, ins, withVol(vol, extra...)...)
 	}
+}
+
+// breakdown strips back to keys and a soft lead, half-time drums joining halfway
+func breakdown(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+
+	// the hook's lead rings no further
+	w.p.Hit(0, chLead, "###", nil)
+
+	for b, cb := range loop {
+		w.keys(b, cb, 0x34, 0)
+		w.bassline(b, cb, breakBassMoves, 0x3C)
+		w.play(chLead, b, breakLead[b], k.lead, 0x40)
+
+		if b >= 2 {
+			w.drums(b, verseKicks, false, b == 3)
+		}
+	}
+
+	// a snare pickup back into the groove
+	for i, vol := range []int{0x28, 0x34} {
+		w.p.Hit(at(3, 14+i), chSnare, "C-4", k.snare, withVol(vol)...)
+	}
+
+	return w.p
+}
+
+// hook is the fullest section: busier bass and kick, open hats, singing lead
+func hook(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+
+	for b, cb := range loop {
+		w.keys(b, cb, 0x3C, 0x28)
+		w.bassline(b, cb, hookBassMoves, 0x48)
+		w.drums(b, hookKicks, true, true)
+		w.openHats(b)
+		w.play(chLead, b, hookLead[b], k.lead, 0x4C)
+	}
+
+	return w.p
+}
+
+// outro thins out to keys and a final held E, then lets the vinyl ring out alone
+func outro(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+
+	for b, cb := range loop[:2] {
+		w.keys(b, cb, 0x34, 0)
+		w.bassline(b, cb, breakBassMoves, 0x3C)
+		w.play(chLead, b, outroLead[b], k.lead, 0x40)
+		w.drums(b, verseKicks, false, b == 1)
+	}
+
+	// the last keys hit, held while everything else stops
+	cb := loop[2]
+
+	w.keys(2, cb, 0x30, 0)
+
+	for _, ch := range []int{chLead, chBass, chKick, chSnare, chHat} {
+		w.p.Hit(at(2, 0), ch, "###", nil)
+	}
+
+	for _, ch := range []int{chKeysLo, chKeysHi} {
+		w.p.Hit(rows-2, ch, "###", nil)
+	}
+
+	return w.p
 }
 
 // vinyl starts the crackle bed, which loops until the outro lets it ring out
@@ -343,46 +409,6 @@ func verseB(s *song.Song, k *kit) *song.Pattern {
 	return w.p
 }
 
-// hook is the fullest section: busier bass and kick, open hats, singing lead
-func hook(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	for b, cb := range loop {
-		w.keys(b, cb, 0x3C, 0x28)
-		w.bassline(b, cb, hookBassMoves, 0x48)
-		w.drums(b, hookKicks, true, true)
-		w.openHats(b)
-		w.play(chLead, b, hookLead[b], k.lead, 0x4C)
-	}
-
-	return w.p
-}
-
-// breakdown strips back to keys and a soft lead, half-time drums joining halfway
-func breakdown(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	// the hook's lead rings no further
-	w.p.Hit(0, chLead, "###", nil)
-
-	for b, cb := range loop {
-		w.keys(b, cb, 0x34, 0)
-		w.bassline(b, cb, breakBassMoves, 0x3C)
-		w.play(chLead, b, breakLead[b], k.lead, 0x40)
-
-		if b >= 2 {
-			w.drums(b, verseKicks, false, b == 3)
-		}
-	}
-
-	// a snare pickup back into the groove
-	for i, vol := range []int{0x28, 0x34} {
-		w.p.Hit(at(3, 14+i), chSnare, "C-4", k.snare, withVol(vol)...)
-	}
-
-	return w.p
-}
-
 // verseC keeps the hook's melody over the sparser verse groove
 func verseC(s *song.Song, k *kit) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
@@ -392,32 +418,6 @@ func verseC(s *song.Song, k *kit) *song.Pattern {
 		w.bassline(b, cb, verseBassMoves, 0x44)
 		w.drums(b, verseKicks, true, true)
 		w.play(chLead, b, hookLead[b], k.lead, 0x40)
-	}
-
-	return w.p
-}
-
-// outro thins out to keys and a final held E, then lets the vinyl ring out alone
-func outro(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	for b, cb := range loop[:2] {
-		w.keys(b, cb, 0x34, 0)
-		w.bassline(b, cb, breakBassMoves, 0x3C)
-		w.play(chLead, b, outroLead[b], k.lead, 0x40)
-		w.drums(b, verseKicks, false, b == 1)
-	}
-
-	// the last keys hit, held while everything else stops
-	cb := loop[2]
-	w.keys(2, cb, 0x30, 0)
-
-	for _, ch := range []int{chLead, chBass, chKick, chSnare, chHat} {
-		w.p.Hit(at(2, 0), ch, "###", nil)
-	}
-
-	for _, ch := range []int{chKeysLo, chKeysHi} {
-		w.p.Hit(rows-2, ch, "###", nil)
 	}
 
 	return w.p
@@ -436,8 +436,14 @@ func main() {
 			Volume: 48,
 			Pan: 120,
 			Envelope: []song.Point{
-				{X: 0, Y: 0},
-				{X: 6, Y: 64},
+				{
+					X: 0,
+					Y: 0,
+				},
+				{
+					X: 6,
+					Y: 64,
+				},
 			},
 		}),
 		keys: s.Instrument(song.Instrument{
@@ -461,8 +467,14 @@ func main() {
 			Volume: 60,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 10, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 10,
+					Y: 0,
+				},
 			},
 		}),
 		snare: s.Instrument(song.Instrument{
@@ -471,8 +483,14 @@ func main() {
 			Volume: 56,
 			Pan: 136,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 14, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 14,
+					Y: 0,
+				},
 			},
 		}),
 		hat: s.Instrument(song.Instrument{
@@ -481,8 +499,14 @@ func main() {
 			Volume: 32,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 3, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 3,
+					Y: 0,
+				},
 			},
 		}),
 		openHat: s.Instrument(song.Instrument{
@@ -491,8 +515,14 @@ func main() {
 			Volume: 30,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 14, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 14,
+					Y: 0,
+				},
 			},
 		}),
 		vinyl: s.Instrument(song.Instrument{
@@ -503,7 +533,6 @@ func main() {
 			Pan: 128,
 		}),
 	}
-
 	introP := intro(s, k)
 	verseAP := verseA(s, k)
 	verseBP := verseB(s, k)
