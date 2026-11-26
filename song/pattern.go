@@ -38,8 +38,9 @@ func Vibrato(speed, depth int) Opt {
 	}
 }
 
-// Hit plays note on channel ch at row row. note is a tracker note name such as "C-4", or "###" for note off.
-// ins is the instrument to play, or nil to keep the instrument already playing
+// Hit plays note on channel ch at row row, replacing whatever the cell held before.
+// note is a tracker note name such as "C-4", or "###" for note off.
+// ins is the instrument to play, or nil for none
 func (p *Pattern) Hit(row, ch int, note string, ins *Instrument, opts ...Opt) {
 	if row < 0 || row >= len(p.rows) || ch < 0 || ch >= p.song.channels {
 		p.song.fail("pattern %d: row %d channel %d is out of range", p.index, row, ch)
@@ -53,7 +54,7 @@ func (p *Pattern) Hit(row, ch int, note string, ins *Instrument, opts ...Opt) {
 	}
 
 	c := &p.rows[row][ch]
-	c.Note = uint8(n)
+	*c = loadtext.ChannelData{Note: uint8(n)}
 
 	if ins != nil {
 		if ins.song != p.song {

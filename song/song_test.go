@@ -116,3 +116,15 @@ func TestWriteLoadsBack(t *testing.T) {
 		t.Errorf("got flags %#x, loop length %d, want forward loop of length 256", s.Flags, s.LoopLength)
 	}
 }
+
+func TestHitReplacesTheCell(t *testing.T) {
+	s := New("x", 1)
+	ins := s.Instrument(Instrument{Name: "a", Recipe: squareRecipe})
+	p := s.Pattern(2)
+	p.Hit(0, 0, "C-4", ins, Pan(0x30))
+	p.Hit(0, 0, "E-4", ins)
+
+	if c := p.rows[0][0]; c.Effect != 0 || c.EffectParameter != 0 {
+		t.Errorf("second hit kept the earlier effect: %+v", c)
+	}
+}
