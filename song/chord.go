@@ -29,9 +29,9 @@ func parseChord(name string) (tone string, minor bool, err error) {
 		return tone, false, nil
 	case "m":
 		return tone, true, nil
-	default:
-		return "", false, fmt.Errorf("unknown chord %q", name)
 	}
+
+	return "", false, fmt.Errorf("unknown chord %q", name)
 }
 
 // shift returns the note semis half steps from n, panicking if that leaves the tracker's note range
@@ -59,6 +59,7 @@ func Triad(chord string, octave int) []string {
 	}
 
 	third := 4
+
 	if minor {
 		third = 3
 	}

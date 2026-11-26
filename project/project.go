@@ -29,9 +29,104 @@ import (
 // SongFile is the name of the text file inside a project folder
 const SongFile = "song.txt"
 
-// trimName returns a fixed-size name without its trailing NUL padding
-func trimName(name []uint8) string {
-	return strings.TrimRight(string(name), "\x00")
+// exists reports whether path exists, returning any error other than it not existing
+func exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+
+	return false, err
+}
+
+// loadSample reads the sample data and bit depth from a WAV file, or renders a recipe
+func loadSample(path string, isRecipe bool) (pcm []uint8, sixteen bool, err error) {
+	if isRecipe {
+		fh, err := os.Open(path)
+		if err != nil {
+			return nil, false, err
+		}
+
+		defer fh.Close()
+
+		return recipe.Render(fh)
+	}
+
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return wav.Decode(file)
+}
+
+// sampleFile finds the file for a sample reference, which is base.wav or base.txt, but not both.
+// It returns true when the file is a recipe.
+func sampleFile(dir, ref string) (path string, isRecipe bool, err error) {
+	base := strings.TrimSuffix(strings.TrimSuffix(ref, ".wav"), ".txt")
+	rel := filepath.FromSlash(base)
+
+	if !filepath.IsLocal(rel) {
+		return "", false, fmt.Errorf("%q is not inside the project folder", ref)
+	}
+
+	wavPath := filepath.Join(dir, rel+".wav")
+	txtPath := filepath.Join(dir, rel+".txt")
+
+	hasWav, err := exists(wavPath)
+	if err != nil {
+		return "", false, err
+	}
+
+	hasTxt, err := exists(txtPath)
+	if err != nil {
+		return "", false, err
+	}
+
+	switch {
+	case hasWav && hasTxt:
+		return "", false, fmt.Errorf("%s has both a .wav and a .txt recipe, remove one", base)
+	case hasWav:
+		return wavPath, false, nil
+	case hasTxt:
+		return txtPath, true, nil
+	}
+
+	return "", false, fmt.Errorf("no sample file for %s, expected a .wav or .txt", base)
+}
+
+// Build reads the text-format module from r, and loads the sample for each sample from inside dir.
+// The result is ready for save.Write.
+func Build(r io.Reader, dir string) (*types.File, error) {
+	tf, err := loadtext.ReadText(r)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range tf.Instruments {
+		for s := range tf.Instruments[i].Samples {
+			sample := &tf.Instruments[i].Samples[s]
+
+			path, isRecipe, err := sampleFile(dir, sample.File)
+			if err != nil {
+				return nil, fmt.Errorf("instrument %d sample %d: %w", i, s, err)
+			}
+
+			pcm, sixteen, err := loadSample(path, isRecipe)
+			if err != nil {
+				return nil, fmt.Errorf("instrument %d sample %d: %w", i, s, err)
+			}
+
+			sample.Data = pcm
+			sample.Sixteen = sixteen
+		}
+	}
+
+	return tf.ToFile()
 }
 
 // slug turns a sample name into part of a file name
@@ -41,7 +136,7 @@ func slug(name string) string {
 	dash := true
 
 	for _, r := range strings.ToLower(name) {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
 			b.WriteRune(r)
 
 			dash = false
@@ -64,31 +159,22 @@ func slug(name string) string {
 	return s
 }
 
-// exists reports whether path exists, returning any error other than it not existing
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-
-	return false, err
+// trimName returns a fixed-size name without its trailing NUL padding
+func trimName(name []uint8) string {
+	return strings.TrimRight(string(name), "\x00")
 }
 
 // Export writes the module f into the folder dir, as dir/song.txt and dir/samples/*.wav.
 // Existing files are only replaced when force is set. A sample that already has a recipe is never replaced.
 func Export(f *types.File, dir string, force bool) error {
-	tf, err := loadtext.FromFile(f)
-	if err != nil {
-		return err
-	}
-
 	type outFile struct {
 		path string
 		data []byte
+	}
+
+	tf, err := loadtext.FromFile(f)
+	if err != nil {
+		return err
 	}
 
 	var wavs []outFile
@@ -96,9 +182,7 @@ func Export(f *types.File, dir string, force bool) error {
 	for i := range tf.Instruments {
 		for s := range tf.Instruments[i].Samples {
 			sample := &tf.Instruments[i].Samples[s]
-
 			sample.File = fmt.Sprintf("samples/%02d-%02d-%s", i, s, slug(trimName(sample.Name[:])))
-
 			base := filepath.Join(dir, filepath.FromSlash(sample.File))
 
 			if has, err := exists(base + ".txt"); err != nil {
@@ -151,90 +235,4 @@ func Export(f *types.File, dir string, force bool) error {
 	}
 
 	return os.WriteFile(songPath, text.Bytes(), 0o644)
-}
-
-// sampleFile finds the file for a sample reference, which is base.wav or base.txt, but not both.
-// It returns true when the file is a recipe.
-func sampleFile(dir, ref string) (path string, isRecipe bool, err error) {
-	base := strings.TrimSuffix(strings.TrimSuffix(ref, ".wav"), ".txt")
-	rel := filepath.FromSlash(base)
-
-	if !filepath.IsLocal(rel) {
-		return "", false, fmt.Errorf("%q is not inside the project folder", ref)
-	}
-
-	wavPath := filepath.Join(dir, rel+".wav")
-	txtPath := filepath.Join(dir, rel+".txt")
-
-	hasWav, err := exists(wavPath)
-	if err != nil {
-		return "", false, err
-	}
-
-	hasTxt, err := exists(txtPath)
-	if err != nil {
-		return "", false, err
-	}
-
-	switch {
-	case hasWav && hasTxt:
-		return "", false, fmt.Errorf("%s has both a .wav and a .txt recipe, remove one", base)
-	case hasWav:
-		return wavPath, false, nil
-	case hasTxt:
-		return txtPath, true, nil
-	default:
-		return "", false, fmt.Errorf("no sample file for %s, expected a .wav or .txt", base)
-	}
-}
-
-// loadSample reads the sample data and bit depth from a WAV file, or renders a recipe
-func loadSample(path string, isRecipe bool) (pcm []uint8, sixteen bool, err error) {
-	if isRecipe {
-		fh, err := os.Open(path)
-		if err != nil {
-			return nil, false, err
-		}
-
-		defer fh.Close()
-
-		return recipe.Render(fh)
-	}
-
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return nil, false, err
-	}
-
-	return wav.Decode(file)
-}
-
-// Build reads the text-format module from r, and loads the sample for each sample from inside dir.
-// The result is ready for save.Write.
-func Build(r io.Reader, dir string) (*types.File, error) {
-	tf, err := loadtext.ReadText(r)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range tf.Instruments {
-		for s := range tf.Instruments[i].Samples {
-			sample := &tf.Instruments[i].Samples[s]
-
-			path, isRecipe, err := sampleFile(dir, sample.File)
-			if err != nil {
-				return nil, fmt.Errorf("instrument %d sample %d: %w", i, s, err)
-			}
-
-			pcm, sixteen, err := loadSample(path, isRecipe)
-			if err != nil {
-				return nil, fmt.Errorf("instrument %d sample %d: %w", i, s, err)
-			}
-
-			sample.Data = pcm
-			sample.Sixteen = sixteen
-		}
-	}
-
-	return tf.ToFile()
 }

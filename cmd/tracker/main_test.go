@@ -24,72 +24,6 @@ Rows: 1
 Row 000: C-4 01 .. .. .. | ... .. .. .. ..
 `
 
-// buildTextOnly writes sampleText to dir as an XM file, for tests that need a module without instruments
-func buildTextOnly(t *testing.T, dir string) string {
-	t.Helper()
-
-	in := filepath.Join(dir, "plain.txt")
-	out := filepath.Join(dir, "plain.xm")
-
-	if err := os.WriteFile(in, []byte(sampleText), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	if err := run([]string{"build", in}, nil, &stdout, &stderr); err != nil {
-		t.Fatalf("build: %v", err)
-	}
-
-	return out
-}
-
-func TestExportTextOnlyToStdout(t *testing.T) {
-	xm := buildTextOnly(t, t.TempDir())
-
-	var stdout, stderr bytes.Buffer
-
-	if err := run([]string{"export", xm}, nil, &stdout, &stderr); err != nil {
-		t.Fatalf("export: %v", err)
-	}
-
-	if !strings.Contains(stdout.String(), "NumChannels: 2\n") {
-		t.Errorf("unexpected output:\n%s", stdout.String())
-	}
-}
-
-func TestExportFolder(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "song")
-
-	var stdout, stderr bytes.Buffer
-
-	if err := run([]string{"export", "-d", dir, "../../track3.xm"}, nil, &stdout, &stderr); err != nil {
-		t.Fatalf("export: %v", err)
-	}
-
-	if stdout.Len() != 0 {
-		t.Errorf("expected no stdout, got %d bytes", stdout.Len())
-	}
-
-	if _, err := os.Stat(filepath.Join(dir, "song.txt")); err != nil {
-		t.Errorf("song.txt missing: %v", err)
-	}
-
-	matches, _ := filepath.Glob(filepath.Join(dir, "samples", "*.wav"))
-	if len(matches) == 0 {
-		t.Errorf("no WAV files written")
-	}
-}
-
-func TestExportFolderRejectsOutputFile(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-
-	err := run([]string{"export", "-o", filepath.Join(t.TempDir(), "x.txt"), "../../track3.xm"}, nil, &stdout, &stderr)
-	if err == nil {
-		t.Error("expected an error")
-	}
-}
-
 func TestBuildFromFolder(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "song")
 
@@ -161,65 +95,60 @@ func TestBuildRefusesToOverwrite(t *testing.T) {
 	}
 }
 
-func TestUnknownCommand(t *testing.T) {
+func TestBuildSongGo(t *testing.T) {
+	// track3-go is a song.go folder, which the program builds into song.xm
+	const dir string = "../../tracks/track3-go"
+
 	var stdout, stderr bytes.Buffer
 
-	if err := run([]string{"bogus"}, nil, &stdout, &stderr); err == nil {
+	if err := run([]string{"build", dir}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("build: %v\n%s", err, stderr.String())
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "song.xm"))
+	if err != nil {
+		t.Fatalf("song.xm not written: %v", err)
+	}
+
+	if _, err := load.Read(bytes.NewBuffer(data)); err != nil {
+		t.Errorf("load.Read: %v", err)
+	}
+}
+
+func TestBuildSongGoRejectsOutput(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"build", "-o", "x.xm", "../../tracks/track3-go"}, nil, &stdout, &stderr); err == nil {
 		t.Error("expected an error")
 	}
 }
 
-func TestRenderRecipe(t *testing.T) {
-	dir := t.TempDir()
-	in := filepath.Join(dir, "lead.txt")
-	out := filepath.Join(dir, "preview.wav")
-
-	if err := os.WriteFile(in, []byte("Frames: 64\nLayer: square 130 0.5\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+func TestExportFolder(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "song")
 
 	var stdout, stderr bytes.Buffer
 
-	if err := run([]string{"render", "-o", out, in}, nil, &stdout, &stderr); err != nil {
-		t.Fatalf("render: %v", err)
+	if err := run([]string{"export", "-d", dir, "../../track3.xm"}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("export: %v", err)
 	}
 
-	data, err := os.ReadFile(out)
-	if err != nil {
-		t.Fatal(err)
+	if stdout.Len() != 0 {
+		t.Errorf("expected no stdout, got %d bytes", stdout.Len())
 	}
 
-	if !bytes.HasPrefix(data, []byte("RIFF")) {
-		t.Errorf("output is not a WAV file")
+	if _, err := os.Stat(filepath.Join(dir, "song.txt")); err != nil {
+		t.Errorf("song.txt missing: %v", err)
+	}
+
+	if matches, _ := filepath.Glob(filepath.Join(dir, "samples", "*.wav")); len(matches) == 0 {
+		t.Errorf("no WAV files written")
 	}
 }
 
-func TestRenderNeedsWavOutput(t *testing.T) {
-	dir := t.TempDir()
-	in := filepath.Join(dir, "lead.txt")
-
-	if err := os.WriteFile(in, []byte("Frames: 64\nLayer: sine 130 0.5\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
+func TestExportFolderRejectsOutputFile(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 
-	if err := run([]string{"render", "-o", filepath.Join(dir, "other.txt"), in}, nil, &stdout, &stderr); err == nil {
-		t.Error("expected an error for a non-WAV output")
-	}
-}
-
-func TestRenderRefusesBesideRecipe(t *testing.T) {
-	dir := t.TempDir()
-	in := filepath.Join(dir, "lead.txt")
-
-	if err := os.WriteFile(in, []byte("Frames: 64\nLayer: sine 130 0.5\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	if err := run([]string{"render", "-o", filepath.Join(dir, "lead.wav"), in}, nil, &stdout, &stderr); err == nil {
+	if err := run([]string{"export", "-o", filepath.Join(t.TempDir(), "x.txt"), "../../track3.xm"}, nil, &stdout, &stderr); err == nil {
 		t.Error("expected an error")
 	}
 }
@@ -252,30 +181,99 @@ func TestNewSongCommand(t *testing.T) {
 	}
 }
 
-func TestBuildSongGo(t *testing.T) {
-	// track3-go is a song.go folder, which the program builds into song.xm
-	dir := "../../tracks/track3-go"
+func TestRenderNeedsWavOutput(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "lead.txt")
+
+	if err := os.WriteFile(in, []byte("Frames: 64\nLayer: sine 130 0.5\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	var stdout, stderr bytes.Buffer
 
-	if err := run([]string{"build", dir}, nil, &stdout, &stderr); err != nil {
-		t.Fatalf("build: %v\n%s", err, stderr.String())
-	}
-
-	data, err := os.ReadFile(filepath.Join(dir, "song.xm"))
-	if err != nil {
-		t.Fatalf("song.xm not written: %v", err)
-	}
-
-	if _, err := load.Read(bytes.NewBuffer(data)); err != nil {
-		t.Errorf("load.Read: %v", err)
+	if err := run([]string{"render", "-o", filepath.Join(dir, "other.txt"), in}, nil, &stdout, &stderr); err == nil {
+		t.Error("expected an error for a non-WAV output")
 	}
 }
 
-func TestBuildSongGoRejectsOutput(t *testing.T) {
+func TestRenderRecipe(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "lead.txt")
+	out := filepath.Join(dir, "preview.wav")
+
+	if err := os.WriteFile(in, []byte("Frames: 64\nLayer: square 130 0.5\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	var stdout, stderr bytes.Buffer
 
-	if err := run([]string{"build", "-o", "x.xm", "../../tracks/track3-go"}, nil, &stdout, &stderr); err == nil {
+	if err := run([]string{"render", "-o", out, in}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.HasPrefix(data, []byte("RIFF")) {
+		t.Errorf("output is not a WAV file")
+	}
+}
+
+func TestRenderRefusesBesideRecipe(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "lead.txt")
+
+	if err := os.WriteFile(in, []byte("Frames: 64\nLayer: sine 130 0.5\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"render", "-o", filepath.Join(dir, "lead.wav"), in}, nil, &stdout, &stderr); err == nil {
 		t.Error("expected an error")
+	}
+}
+
+func TestUnknownCommand(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"bogus"}, nil, &stdout, &stderr); err == nil {
+		t.Error("expected an error")
+	}
+}
+
+// buildTextOnly writes sampleText to dir as an XM file, for tests that need a module without instruments
+func buildTextOnly(t *testing.T, dir string) string {
+	t.Helper()
+
+	in := filepath.Join(dir, "plain.txt")
+	out := filepath.Join(dir, "plain.xm")
+
+	if err := os.WriteFile(in, []byte(sampleText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"build", in}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("build: %v", err)
+	}
+
+	return out
+}
+
+func TestExportTextOnlyToStdout(t *testing.T) {
+	xm := buildTextOnly(t, t.TempDir())
+
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"export", xm}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("export: %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), "NumChannels: 2\n") {
+		t.Errorf("unexpected output:\n%s", stdout.String())
 	}
 }

@@ -11,8 +11,8 @@ import (
 
 func TestToFileRejectsBadPatternCount(t *testing.T) {
 	tf := &TextFormat{
-		NumPatterns: 2,
 		NumChannels: 1,
+		NumPatterns: 2,
 	}
 
 	if _, err := tf.ToFile(); err == nil {
@@ -99,7 +99,7 @@ func TestXMRoundTrip(t *testing.T) {
 
 // TestXMRoundTripInstruments checks instruments and samples survive text -> XM bytes -> text
 func TestXMRoundTripInstruments(t *testing.T) {
-	for name, sixteen := range map[string]bool{"8-bit": false, "16-bit": true} {
+	for name, sixteen := range map[string]bool{"16-bit": true, "8-bit": false} {
 		t.Run(name, func(t *testing.T) {
 			text := withInstrument()
 

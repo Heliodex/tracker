@@ -14,53 +14,6 @@ import (
 // SampleRate is written to every file. XM stores no sample rate, so this is the rate at which C-4 plays
 const SampleRate = 8363
 
-// Encode returns a mono PCM WAV file holding pcm. sixteen selects 16-bit samples, otherwise 8-bit
-func Encode(pcm []uint8, sixteen bool) ([]byte, error) {
-	bytesPerSample := 1
-	data := make([]uint8, len(pcm))
-
-	if sixteen {
-		bytesPerSample = 2
-
-		if len(pcm)%2 != 0 {
-			return nil, errors.New("16-bit sample data has an odd length")
-		}
-
-		copy(data, pcm)
-	} else {
-		for i, s := range pcm {
-			data[i] = s ^ 0x80
-		}
-	}
-
-	var b bytes.Buffer
-
-	pad := len(data) % 2
-
-	b.WriteString("RIFF")
-	binary.Write(&b, binary.LittleEndian, uint32(4+8+16+8+len(data)+pad))
-	b.WriteString("WAVE")
-
-	b.WriteString("fmt ")
-	binary.Write(&b, binary.LittleEndian, uint32(16))
-	binary.Write(&b, binary.LittleEndian, uint16(1)) // uncompressed PCM
-	binary.Write(&b, binary.LittleEndian, uint16(1)) // mono
-	binary.Write(&b, binary.LittleEndian, uint32(SampleRate))
-	binary.Write(&b, binary.LittleEndian, uint32(SampleRate*bytesPerSample))
-	binary.Write(&b, binary.LittleEndian, uint16(bytesPerSample))
-	binary.Write(&b, binary.LittleEndian, uint16(8*bytesPerSample))
-
-	b.WriteString("data")
-	binary.Write(&b, binary.LittleEndian, uint32(len(data)))
-	b.Write(data)
-
-	if pad == 1 {
-		b.WriteByte(0)
-	}
-
-	return b.Bytes(), nil
-}
-
 // Decode reads a mono 8-bit or 16-bit PCM WAV file and returns its samples in XM form.
 // The sample rate is ignored, as XM has no equivalent.
 func Decode(file []byte) (pcm []uint8, sixteen bool, err error) {
@@ -68,15 +21,15 @@ func Decode(file []byte) (pcm []uint8, sixteen bool, err error) {
 		return nil, false, errors.New("not a WAV file")
 	}
 
+	var haveFmt bool
+
 	rest := file[12:]
-	haveFmt := false
 
 	var bits uint16
 
 	for len(rest) >= 8 {
 		id := string(rest[0:4])
 		size := int(binary.LittleEndian.Uint32(rest[4:8]))
-
 		rest = rest[8:]
 
 		if size > len(rest) {
@@ -97,7 +50,6 @@ func Decode(file []byte) (pcm []uint8, sixteen bool, err error) {
 
 			format := binary.LittleEndian.Uint16(chunk[0:2])
 			channels := binary.LittleEndian.Uint16(chunk[2:4])
-
 			bits = binary.LittleEndian.Uint16(chunk[14:16])
 
 			if format != 1 {
@@ -137,4 +89,49 @@ func Decode(file []byte) (pcm []uint8, sixteen bool, err error) {
 	}
 
 	return nil, false, errors.New("no data chunk")
+}
+
+// Encode returns a mono PCM WAV file holding pcm. sixteen selects 16-bit samples, otherwise 8-bit
+func Encode(pcm []uint8, sixteen bool) ([]byte, error) {
+	bytesPerSample := 1
+	data := make([]uint8, len(pcm))
+
+	if sixteen {
+		bytesPerSample = 2
+
+		if len(pcm)%2 != 0 {
+			return nil, errors.New("16-bit sample data has an odd length")
+		}
+
+		copy(data, pcm)
+	} else {
+		for i, s := range pcm {
+			data[i] = s ^ 0x80
+		}
+	}
+
+	var b bytes.Buffer
+
+	pad := len(data) % 2
+
+	b.WriteString("RIFF")
+	binary.Write(&b, binary.LittleEndian, uint32(4+8+16+8+len(data)+pad))
+	b.WriteString("WAVE")
+	b.WriteString("fmt ")
+	binary.Write(&b, binary.LittleEndian, uint32(16))
+	binary.Write(&b, binary.LittleEndian, uint16(1)) // uncompressed PCM
+	binary.Write(&b, binary.LittleEndian, uint16(1)) // mono
+	binary.Write(&b, binary.LittleEndian, uint32(SampleRate))
+	binary.Write(&b, binary.LittleEndian, uint32(SampleRate*bytesPerSample))
+	binary.Write(&b, binary.LittleEndian, uint16(bytesPerSample))
+	binary.Write(&b, binary.LittleEndian, uint16(8*bytesPerSample))
+	b.WriteString("data")
+	binary.Write(&b, binary.LittleEndian, uint32(len(data)))
+	b.Write(data)
+
+	if pad == 1 {
+		b.WriteByte(0)
+	}
+
+	return b.Bytes(), nil
 }

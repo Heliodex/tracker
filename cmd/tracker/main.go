@@ -20,6 +20,11 @@ import (
 	"github.com/Heliodex/tracker/wav"
 )
 
+type options struct {
+	out, dir string
+	force bool
+}
+
 const usage = `usage:
   tracker export [-d dir] [-o out.txt] [-f] module.xm
       convert an XM module to the text format
@@ -47,52 +52,10 @@ and -d with export when the module has instruments.
 // errUsage is returned for bad command lines, after the usage text has been printed
 var errUsage = errors.New("bad usage")
 
-func main() {
-	err := run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
-	if err == nil || errors.Is(err, flag.ErrHelp) {
-		return
-	}
-
-	if !errors.Is(err, errUsage) {
-		fmt.Fprintln(os.Stderr, "tracker:", err)
-	}
-
-	os.Exit(1)
-}
-
-func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	if len(args) == 0 {
-		fmt.Fprint(stderr, usage)
-		return errUsage
-	}
-
-	switch args[0] {
-	case "export":
-		return export(args[1:], stdin, stdout, stderr)
-	case "build":
-		return build(args[1:], stdin, stdout, stderr)
-	case "render":
-		return render(args[1:], stdin, stdout, stderr)
-	case "new":
-		return newSong(args[1:], stderr)
-	case "help", "-h", "-help", "--help":
-		fmt.Fprint(stdout, usage)
-		return nil
-	default:
-		fmt.Fprintf(stderr, "tracker: unknown command %q\n\n%s", args[0], usage)
-		return errUsage
-	}
-}
-
-type options struct {
-	out string
-	dir string
-	force bool
-}
-
 // newFlagSet returns the flags shared by every command
 func newFlagSet(name string, stderr io.Writer, o *options) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+
 	fs.SetOutput(stderr)
 	fs.StringVar(&o.out, "o", "", `output file, "-" for stdout`)
 	fs.StringVar(&o.dir, "d", "", "folder for a module with instruments")
@@ -111,6 +74,7 @@ func parseArgs(fs *flag.FlagSet, args []string) ([]string, error) {
 		}
 
 		args = fs.Args()
+
 		if len(args) == 0 {
 			return positional, nil
 		}
@@ -118,6 +82,35 @@ func parseArgs(fs *flag.FlagSet, args []string) ([]string, error) {
 		positional = append(positional, args[0])
 		args = args[1:]
 	}
+}
+
+// newSong creates a folder with an empty song.txt to start from
+func newSong(args []string, stderr io.Writer) error {
+	var (
+		name string
+		channels, rows int
+		force bool
+	)
+
+	fs := flag.NewFlagSet("new", flag.ContinueOnError)
+
+	fs.SetOutput(stderr)
+	fs.StringVar(&name, "name", "", "song name, up to 20 characters")
+	fs.IntVar(&channels, "channels", 4, "number of channels")
+	fs.IntVar(&rows, "rows", 64, "rows in the first pattern")
+	fs.BoolVar(&force, "f", false, "overwrite an existing song.txt")
+
+	positional, err := parseArgs(fs, args)
+	if err != nil {
+		return err
+	}
+
+	if len(positional) != 1 {
+		fmt.Fprintf(stderr, "tracker new: expected one folder, got %d\n\n%s", len(positional), usage)
+		return errUsage
+	}
+
+	return project.NewSong(positional[0], name, channels, rows, force)
 }
 
 // parseOne parses a command line that takes exactly one input
@@ -146,6 +139,49 @@ func readInput(path string, stdin io.Reader) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
+// runSongGo builds a song folder by running its song.go, which writes its own module.
+// The folder must be inside a Go module, such as this repository.
+func runSongGo(dir string, stdout, stderr io.Writer) error {
+	cmd := exec.Command("go", "run", ".")
+	cmd.Dir = dir
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s: go run failed: %w", dir, err)
+	}
+
+	return nil
+}
+
+// songGoDir returns the folder holding a song.go, when in is that folder or the song.go itself
+func songGoDir(in string) (string, bool) {
+	if in == "-" {
+		return "", false
+	}
+
+	info, err := os.Stat(in)
+	if err != nil {
+		return "", false
+	}
+
+	dir := in
+
+	if !info.IsDir() {
+		if filepath.Base(in) != "song.go" {
+			return "", false
+		}
+
+		dir = filepath.Dir(in)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "song.go")); err != nil {
+		return "", false
+	}
+
+	return dir, true
+}
+
 // writeOutput writes data to path, or stdout for "-", refusing to overwrite unless force is set
 func writeOutput(path string, force bool, data []byte, stdout io.Writer) error {
 	if path == "-" {
@@ -161,6 +197,68 @@ func writeOutput(path string, force bool, data []byte, stdout io.Writer) error {
 	}
 
 	return os.WriteFile(path, data, 0o644)
+}
+
+func build(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	var o options
+
+	in, err := parseOne("build", args, stderr, &o)
+	if err != nil {
+		return err
+	}
+
+	if dir, ok := songGoDir(in); ok {
+		if o.out != "" {
+			return errors.New("a song.go writes its own output, so -o does not apply")
+		}
+
+		return runSongGo(dir, stdout, stderr)
+	}
+
+	// a folder means its song.txt
+	if in != "-" {
+		if info, err := os.Stat(in); err == nil && info.IsDir() {
+			in = filepath.Join(in, project.SongFile)
+		}
+	}
+
+	out := o.out
+	if out == "" {
+		if in == "-" {
+			return errors.New("reading from stdin needs -o")
+		}
+
+		out = strings.TrimSuffix(in, filepath.Ext(in)) + ".xm"
+	}
+
+	if in != "-" && out == in {
+		return fmt.Errorf("output would overwrite the input %s", in)
+	}
+
+	data, err := readInput(in, stdin)
+	if err != nil {
+		return err
+	}
+
+	// samples are read relative to the text file, or the current folder for stdin
+	dir := "."
+
+	if in != "-" {
+		dir = filepath.Dir(in)
+	}
+
+	f, err := project.Build(bytes.NewReader(data), dir)
+	if err != nil {
+		return fmt.Errorf("%s: %w", in, err)
+	}
+
+	var xm bytes.Buffer
+
+	if err := save.Write(&xm, f); err != nil {
+		return fmt.Errorf("%s: %w", in, err)
+	}
+
+	return writeOutput(out, o.force, xm.Bytes(), stdout)
 }
 
 func export(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
@@ -187,7 +285,6 @@ func export(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		}
 
 		dir := o.dir
-
 		if dir == "" {
 			if in == "-" {
 				return errors.New("exporting from stdin needs -d")
@@ -219,68 +316,6 @@ func export(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	}
 
 	return writeOutput(o.out, o.force, text.Bytes(), stdout)
-}
-
-func build(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	var o options
-
-	in, err := parseOne("build", args, stderr, &o)
-	if err != nil {
-		return err
-	}
-
-	if dir, ok := songGoDir(in); ok {
-		if o.out != "" {
-			return errors.New("a song.go writes its own output, so -o does not apply")
-		}
-
-		return runSongGo(dir, stdout, stderr)
-	}
-
-	// a folder means its song.txt
-	if in != "-" {
-		if info, err := os.Stat(in); err == nil && info.IsDir() {
-			in = filepath.Join(in, project.SongFile)
-		}
-	}
-
-	out := o.out
-
-	if out == "" {
-		if in == "-" {
-			return errors.New("reading from stdin needs -o")
-		}
-
-		out = strings.TrimSuffix(in, filepath.Ext(in)) + ".xm"
-	}
-
-	if in != "-" && out == in {
-		return fmt.Errorf("output would overwrite the input %s", in)
-	}
-
-	data, err := readInput(in, stdin)
-	if err != nil {
-		return err
-	}
-
-	// samples are read relative to the text file, or the current folder for stdin
-	dir := "."
-	if in != "-" {
-		dir = filepath.Dir(in)
-	}
-
-	f, err := project.Build(bytes.NewReader(data), dir)
-	if err != nil {
-		return fmt.Errorf("%s: %w", in, err)
-	}
-
-	var xm bytes.Buffer
-
-	if err := save.Write(&xm, f); err != nil {
-		return fmt.Errorf("%s: %w", in, err)
-	}
-
-	return writeOutput(out, o.force, xm.Bytes(), stdout)
 }
 
 // render writes a sample recipe as a WAV file. It needs -o, so the WAV is never written beside the recipe,
@@ -323,74 +358,40 @@ func render(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	return writeOutput(o.out, o.force, file, stdout)
 }
 
-// newSong creates a folder with an empty song.txt to start from
-func newSong(args []string, stderr io.Writer) error {
-	var (
-		name string
-		channels int
-		rows int
-		force bool
-	)
-
-	fs := flag.NewFlagSet("new", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	fs.StringVar(&name, "name", "", "song name, up to 20 characters")
-	fs.IntVar(&channels, "channels", 4, "number of channels")
-	fs.IntVar(&rows, "rows", 64, "rows in the first pattern")
-	fs.BoolVar(&force, "f", false, "overwrite an existing song.txt")
-
-	positional, err := parseArgs(fs, args)
-	if err != nil {
-		return err
-	}
-
-	if len(positional) != 1 {
-		fmt.Fprintf(stderr, "tracker new: expected one folder, got %d\n\n%s", len(positional), usage)
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		fmt.Fprint(stderr, usage)
 		return errUsage
 	}
 
-	return project.NewSong(positional[0], name, channels, rows, force)
+	switch args[0] {
+	case "export":
+		return export(args[1:], stdin, stdout, stderr)
+	case "build":
+		return build(args[1:], stdin, stdout, stderr)
+	case "render":
+		return render(args[1:], stdin, stdout, stderr)
+	case "new":
+		return newSong(args[1:], stderr)
+	case "--help", "-h", "-help", "help":
+		fmt.Fprint(stdout, usage)
+		return nil
+	}
+
+	fmt.Fprintf(stderr, "tracker: unknown command %q\n\n%s", args[0], usage)
+
+	return errUsage
 }
 
-// songGoDir returns the folder holding a song.go, when in is that folder or the song.go itself
-func songGoDir(in string) (string, bool) {
-	if in == "-" {
-		return "", false
+func main() {
+	err := run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	if err == nil || errors.Is(err, flag.ErrHelp) {
+		return
 	}
 
-	info, err := os.Stat(in)
-	if err != nil {
-		return "", false
+	if !errors.Is(err, errUsage) {
+		fmt.Fprintln(os.Stderr, "tracker:", err)
 	}
 
-	dir := in
-
-	if !info.IsDir() {
-		if filepath.Base(in) != "song.go" {
-			return "", false
-		}
-
-		dir = filepath.Dir(in)
-	}
-
-	if _, err := os.Stat(filepath.Join(dir, "song.go")); err != nil {
-		return "", false
-	}
-
-	return dir, true
-}
-
-// runSongGo builds a song folder by running its song.go, which writes its own module.
-// The folder must be inside a Go module, such as this repository.
-func runSongGo(dir string, stdout, stderr io.Writer) error {
-	cmd := exec.Command("go", "run", ".")
-	cmd.Dir = dir
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%s: go run failed: %w", dir, err)
-	}
-
-	return nil
+	os.Exit(1)
 }

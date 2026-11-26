@@ -27,53 +27,63 @@ import (
 	"github.com/Heliodex/tracker/types"
 )
 
+type (
+	// Point is a point on an envelope: a tick, and a volume from 0 to 64
+	Point struct {
+		X, Y int
+	}
+
+	// Instrument is a sound: a recipe for its sample, and how it is played.
+	Instrument struct {
+		// Name is at most 22 characters
+		Name string
+		// Recipe is the sample, as recipe text (see package recipe)
+		Recipe string
+		// Loop repeats the whole sample. Without it, the sample plays once
+		Loop bool
+		// Volume is the sample volume from 0 to 64. Zero means 64
+		Volume int
+		// Pan is the sample panning from 0 (left) to 255 (right). Zero means centre, 128
+		Pan int
+		// Envelope is the volume envelope, as points of tick and volume (0 to 64). Empty means no envelope
+		Envelope []Point
+		// Fadeout is how fast the volume falls after a note off, from 0 to 65535. Zero means 256
+		Fadeout, id int
+		recipe *recipe.Recipe
+		song *Song
+	}
+
+	// Song is a module under construction
+	Song struct {
+		name string
+		channels, speed, tempo int
+		linear bool
+		instruments []*Instrument
+		patterns, order []*Pattern
+		err error
+	}
+)
+
 // RowsPerBar is the number of rows in a bar, for laying out a song in bars
 const RowsPerBar = 16
 
-// Instrument is a sound: a recipe for its sample, and how it is played.
-type Instrument struct {
-	// Name is at most 22 characters
-	Name string
-	// Recipe is the sample, as recipe text (see package recipe)
-	Recipe string
-	// Loop repeats the whole sample. Without it, the sample plays once
-	Loop bool
-	// Volume is the sample volume from 0 to 64. Zero means 64
-	Volume int
-	// Pan is the sample panning from 0 (left) to 255 (right). Zero means centre, 128
-	Pan int
-	// Envelope is the volume envelope, as points of tick and volume (0 to 64). Empty means no envelope
-	Envelope []Point
-	// Fadeout is how fast the volume falls after a note off, from 0 to 65535. Zero means 256
-	Fadeout int
-
-	id int
-	recipe *recipe.Recipe
-	song *Song
-}
-
-// Point is a point on an envelope: a tick, and a volume from 0 to 64
-type Point struct {
-	X, Y int
-}
-
-// Song is a module under construction
-type Song struct {
-	name string
-	channels int
-	speed int
-	tempo int
-	linear bool
-	instruments []*Instrument
-	patterns []*Pattern
-	order []*Pattern
-	err error
+// fail records the first error, which Build returns
+func (s *Song) fail(format string, args ...any) {
+	if s.err == nil {
+		s.err = fmt.Errorf(format, args...)
+	}
 }
 
 // New starts a song with the given name, which is at most 20 characters, and number of channels from 1 to 32.
 // Speed and tempo start at 6 and 125, with linear slides.
 func New(name string, channels int) *Song {
-	s := &Song{name: name, channels: channels, speed: 6, tempo: 125, linear: true}
+	s := &Song{
+		name: name,
+		channels: channels,
+		speed: 6,
+		tempo: 125,
+		linear: true,
+	}
 
 	if len(name) > 20 {
 		s.fail("song name is longer than 20 characters: %q", name)
@@ -84,29 +94,6 @@ func New(name string, channels int) *Song {
 	}
 
 	return s
-}
-
-// fail records the first error, which Build returns
-func (s *Song) fail(format string, args ...any) {
-	if s.err == nil {
-		s.err = fmt.Errorf(format, args...)
-	}
-}
-
-// Timing sets the speed (ticks per row) and tempo (beats per minute)
-func (s *Song) Timing(speed, tempo int) {
-	if speed < 1 || speed > 255 {
-		s.fail("speed must be between 1 and 255, got %d", speed)
-		return
-	}
-
-	if tempo < 32 || tempo > 255 {
-		s.fail("tempo must be between 32 and 255, got %d", tempo)
-		return
-	}
-
-	s.speed = speed
-	s.tempo = tempo
 }
 
 // Instrument adds an instrument to the song, and returns it for use in patterns
@@ -125,40 +112,73 @@ func (s *Song) Instrument(ins Instrument) *Instrument {
 	}
 
 	in.recipe = rc
-
 	s.instruments = append(s.instruments, &in)
 
 	return &in
 }
 
-// Pattern adds an empty pattern of rows rows to the song. Patterns are played with Play
-func (s *Song) Pattern(rows int) *Pattern {
-	if rows < 1 || rows > 256 {
-		s.fail("pattern rows must be between 1 and 256, got %d", rows)
-		rows = 1
+// toText converts the instrument to the form the text format and XM writer use
+func (ins *Instrument) toText() (loadtext.Instrument, error) {
+	rc := ins.recipe
+	if rc == nil {
+		return loadtext.Instrument{}, fmt.Errorf("instrument %q has no recipe", ins.Name)
 	}
 
-	p := &Pattern{song: s, index: len(s.patterns), rows: make(loadtext.Pattern, rows)}
-
-	for r := range p.rows {
-		p.rows[r] = make([]loadtext.ChannelData, s.channels)
+	volume, pan, fadeout := ins.Volume, ins.Pan, ins.Fadeout
+	if volume == 0 {
+		volume = 64
 	}
 
-	s.patterns = append(s.patterns, p)
+	if pan == 0 {
+		pan = 128
+	}
 
-	return p
-}
+	if fadeout == 0 {
+		fadeout = 256
+	}
 
-// Play appends patterns to the order, so they play in this sequence
-func (s *Song) Play(patterns ...*Pattern) {
-	for _, p := range patterns {
-		if p.song != s {
-			s.fail("pattern %d belongs to another song", p.index)
-			continue
+	li := loadtext.Instrument{
+		VolumeFadeout: uint16(fadeout),
+	}
+
+	copy(li.Name[:], ins.Name)
+
+	if len(ins.Envelope) > 0 {
+		if len(ins.Envelope) > 12 {
+			return loadtext.Instrument{}, fmt.Errorf("instrument %q has more than 12 envelope points", ins.Name)
 		}
 
-		s.order = append(s.order, p)
+		for _, pt := range ins.Envelope {
+			if pt.X < 0 || pt.X > 65535 || pt.Y < 0 || pt.Y > 64 {
+				return loadtext.Instrument{}, fmt.Errorf("instrument %q: envelope point %v is out of range", ins.Name, pt)
+			}
+
+			li.VolPoints = append(li.VolPoints, types.EnvPoint{
+				X: uint16(pt.X),
+				Y: uint16(pt.Y),
+			})
+		}
+
+		li.VolFlags = 1
 	}
+
+	sample := loadtext.Sample{
+		Volume: uint8(volume),
+		Panning: uint8(pan),
+		Data: rc.Render(),
+		Sixteen: rc.Sixteen,
+	}
+
+	copy(sample.Name[:], ins.Name)
+
+	if ins.Loop {
+		sample.LoopMode = 1
+		sample.LoopLength = uint32(rc.Frames)
+	}
+
+	li.Samples = []loadtext.Sample{sample}
+
+	return li, nil
 }
 
 // Build converts the song to an XM file representation, ready to save
@@ -202,6 +222,57 @@ func (s *Song) Build() (*types.File, error) {
 	return tf.ToFile()
 }
 
+// Pattern adds an empty pattern of rows rows to the song. Patterns are played with Play
+func (s *Song) Pattern(rows int) *Pattern {
+	if rows < 1 || rows > 256 {
+		s.fail("pattern rows must be between 1 and 256, got %d", rows)
+
+		rows = 1
+	}
+
+	p := &Pattern{
+		song: s,
+		index: len(s.patterns),
+		rows: make(loadtext.Pattern, rows),
+	}
+
+	for r := range p.rows {
+		p.rows[r] = make([]loadtext.ChannelData, s.channels)
+	}
+
+	s.patterns = append(s.patterns, p)
+
+	return p
+}
+
+// Play appends patterns to the order, so they play in this sequence
+func (s *Song) Play(patterns ...*Pattern) {
+	for _, p := range patterns {
+		if p.song != s {
+			s.fail("pattern %d belongs to another song", p.index)
+			continue
+		}
+
+		s.order = append(s.order, p)
+	}
+}
+
+// Timing sets the speed (ticks per row) and tempo (beats per minute)
+func (s *Song) Timing(speed, tempo int) {
+	if speed < 1 || speed > 255 {
+		s.fail("speed must be between 1 and 255, got %d", speed)
+		return
+	}
+
+	if tempo < 32 || tempo > 255 {
+		s.fail("tempo must be between 32 and 255, got %d", tempo)
+		return
+	}
+
+	s.speed = speed
+	s.tempo = tempo
+}
+
 // Write builds the song and writes it to path as an XM file
 func (s *Song) Write(path string) error {
 	f, err := s.Build()
@@ -216,63 +287,4 @@ func (s *Song) Write(path string) error {
 	}
 
 	return os.WriteFile(path, b.Bytes(), 0o644)
-}
-
-// toText converts the instrument to the form the text format and XM writer use
-func (ins *Instrument) toText() (loadtext.Instrument, error) {
-	rc := ins.recipe
-	if rc == nil {
-		return loadtext.Instrument{}, fmt.Errorf("instrument %q has no recipe", ins.Name)
-	}
-
-	volume, pan, fadeout := ins.Volume, ins.Pan, ins.Fadeout
-
-	if volume == 0 {
-		volume = 64
-	}
-
-	if pan == 0 {
-		pan = 128
-	}
-
-	if fadeout == 0 {
-		fadeout = 256
-	}
-
-	li := loadtext.Instrument{VolumeFadeout: uint16(fadeout)}
-	copy(li.Name[:], ins.Name)
-
-	if len(ins.Envelope) > 0 {
-		if len(ins.Envelope) > 12 {
-			return loadtext.Instrument{}, fmt.Errorf("instrument %q has more than 12 envelope points", ins.Name)
-		}
-
-		for _, pt := range ins.Envelope {
-			if pt.X < 0 || pt.X > 65535 || pt.Y < 0 || pt.Y > 64 {
-				return loadtext.Instrument{}, fmt.Errorf("instrument %q: envelope point %v is out of range", ins.Name, pt)
-			}
-
-			li.VolPoints = append(li.VolPoints, types.EnvPoint{X: uint16(pt.X), Y: uint16(pt.Y)})
-		}
-
-		li.VolFlags = 1
-	}
-
-	sample := loadtext.Sample{
-		Volume: uint8(volume),
-		Panning: uint8(pan),
-		Data: rc.Render(),
-		Sixteen: rc.Sixteen,
-	}
-
-	copy(sample.Name[:], ins.Name)
-
-	if ins.Loop {
-		sample.LoopMode = 1
-		sample.LoopLength = uint32(rc.Frames)
-	}
-
-	li.Samples = []loadtext.Sample{sample}
-
-	return li, nil
 }

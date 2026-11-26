@@ -18,31 +18,127 @@ const (
 	linearSlides = 1
 )
 
-// xmCellFlags returns the packed-data flags for a cell, so only the columns in use are stored
-func xmCellFlags(c ChannelData) types.ChannelFlags {
-	f := types.ChannelFlagValid
-
-	if c.Note != 0 {
-		f |= types.ChannelFlagHasNote
+// sampleFromXM converts an XM sample header to a sample, with loop points converted from bytes to frames
+func sampleFromXM(sh *types.SampleHeader) (Sample, error) {
+	if sh.Flags&types.SampleFlagStereo != 0 {
+		return Sample{}, errors.New("stereo samples are not supported")
 	}
 
-	if c.Instrument != 0 {
-		f |= types.ChannelFlagHasInstrument
+	var bytesPerFrame uint32 = 1
+
+	sixteen := sh.Flags&types.SampleFlag16Bit != 0
+	if sixteen {
+		bytesPerFrame = 2
 	}
 
-	if c.Volume != 0 {
-		f |= types.ChannelFlagHasVolume
+	if sh.LoopStart%bytesPerFrame != 0 || sh.LoopLength%bytesPerFrame != 0 {
+		return Sample{}, errors.New("loop point is not aligned to a sample frame")
 	}
 
-	if c.Effect != 0 {
-		f |= types.ChannelFlagHasEffect
+	return Sample{
+		Name: sh.Name,
+		Volume: sh.Volume,
+		Finetune: sh.Finetune,
+		Panning: sh.Panning,
+		RelativeNote: sh.RelativeNoteNumber,
+		LoopMode: uint8(sh.Flags & 0x03),
+		LoopStart: sh.LoopStart / bytesPerFrame,
+		LoopLength: sh.LoopLength / bytesPerFrame,
+		Sixteen: sixteen,
+		Data: sh.SampleData,
+	}, nil
+}
+
+// instrumentFromXM converts an XM instrument header to an instrument
+func instrumentFromXM(ih *types.InstrumentHeader) (Instrument, error) {
+	if ih.VolPoints > maxEnvPoints || ih.PanPoints > maxEnvPoints {
+		return Instrument{}, fmt.Errorf("more than %d envelope points", maxEnvPoints)
 	}
 
-	if c.EffectParameter != 0 {
-		f |= types.ChannelFlagHasEffectParameter
+	ins := Instrument{
+		Name: ih.Name,
+		Type: ih.Type,
+		Keymap: ih.SampleNumber,
+		VolPoints: append([]types.EnvPoint(nil), ih.VolEnv[:ih.VolPoints]...),
+		PanPoints: append([]types.EnvPoint(nil), ih.PanEnv[:ih.PanPoints]...),
+		VolSustain: ih.VolSustainPoint,
+		VolLoopStart: ih.VolLoopStartPoint,
+		VolLoopEnd: ih.VolLoopEndPoint,
+		VolFlags: uint8(ih.VolFlags),
+		PanSustain: ih.PanSustainPoint,
+		PanLoopStart: ih.PanLoopStartPoint,
+		PanLoopEnd: ih.PanLoopEndPoint,
+		PanFlags: uint8(ih.PanFlags),
+		VibratoType: ih.VibratoType,
+		VibratoSweep: ih.VibratoSweep,
+		VibratoDepth: ih.VibratoDepth,
+		VibratoRate: ih.VibratoRate,
+		VolumeFadeout: ih.VolumeFadeout,
 	}
 
-	return f
+	for i := range ih.Samples {
+		s, err := sampleFromXM(&ih.Samples[i])
+		if err != nil {
+			return ins, fmt.Errorf("sample %d: %w", i, err)
+		}
+
+		ins.Samples = append(ins.Samples, s)
+	}
+
+	return ins, nil
+}
+
+// FromFile converts an XM file representation into the text format.
+// Sample data is copied into each sample, ready for writing to WAV files.
+func FromFile(f *types.File) (*TextFormat, error) {
+	h := &f.Head
+	if h.SongLength > 256 {
+		return nil, fmt.Errorf("song length out of range: %d", h.SongLength)
+	}
+
+	tf := &TextFormat{
+		Name: h.Name,
+		NumChannels: h.NumChannels,
+		NumPatterns: uint16(len(f.Patterns)),
+		NumInstruments: uint16(len(f.Instruments)),
+		Speed: h.DefaultSpeed,
+		Tempo: h.DefaultTempo,
+		LinearSlides: h.Flags&linearSlides != 0,
+		OrderTable: append([]uint8(nil), h.OrderTable[:h.SongLength]...),
+	}
+
+	for _, p := range f.Patterns {
+		pattern := make(Pattern, len(p.Data))
+
+		for r, row := range p.Data {
+			cells := make([]ChannelData, len(row))
+
+			for c, cd := range row {
+				cells[c] = ChannelData{
+					Note: uint8(cd.Note),
+					Instrument: cd.Instrument,
+					Volume: cd.Volume,
+					Effect: cd.Effect,
+					EffectParameter: cd.EffectParameter,
+				}
+			}
+
+			pattern[r] = cells
+		}
+
+		tf.Patterns = append(tf.Patterns, pattern)
+	}
+
+	for i := range f.Instruments {
+		ins, err := instrumentFromXM(&f.Instruments[i])
+		if err != nil {
+			return nil, fmt.Errorf("instrument %d: %w", i, err)
+		}
+
+		tf.Instruments = append(tf.Instruments, ins)
+	}
+
+	return tf, nil
 }
 
 // sampleToXM converts a sample to its XM header, with loop points converted from frames to bytes
@@ -119,6 +215,33 @@ func instrumentToXM(ins *Instrument) (types.InstrumentHeader, error) {
 	return h, nil
 }
 
+// xmCellFlags returns the packed-data flags for a cell, so only the columns in use are stored
+func xmCellFlags(c ChannelData) types.ChannelFlags {
+	f := types.ChannelFlagValid
+
+	if c.Note != 0 {
+		f |= types.ChannelFlagHasNote
+	}
+
+	if c.Instrument != 0 {
+		f |= types.ChannelFlagHasInstrument
+	}
+
+	if c.Volume != 0 {
+		f |= types.ChannelFlagHasVolume
+	}
+
+	if c.Effect != 0 {
+		f |= types.ChannelFlagHasEffect
+	}
+
+	if c.EffectParameter != 0 {
+		f |= types.ChannelFlagHasEffectParameter
+	}
+
+	return f
+}
+
 // ToFile converts the text format into an XM file representation, ready for save.Write.
 // Sample data must already be set on each sample, see Sample.Data.
 func (tf *TextFormat) ToFile() (*types.File, error) {
@@ -138,9 +261,12 @@ func (tf *TextFormat) ToFile() (*types.File, error) {
 	h := &f.Head
 
 	copy(h.IDText[:], "Extended Module: ")
+
 	h.Name = tf.Name
 	h.Reserved1A = 0x1A
+
 	copy(h.TrackerName[:], "tracker")
+
 	h.VersionNumber = 0x0104
 	h.HeaderSize = xmHeaderSize
 	h.SongLength = uint16(len(tf.OrderTable))
@@ -154,6 +280,7 @@ func (tf *TextFormat) ToFile() (*types.File, error) {
 
 	h.DefaultSpeed = tf.Speed
 	h.DefaultTempo = tf.Tempo
+
 	copy(h.OrderTable[:], tf.OrderTable)
 
 	for _, pattern := range tf.Patterns {
@@ -198,128 +325,4 @@ func (tf *TextFormat) ToFile() (*types.File, error) {
 	}
 
 	return f, nil
-}
-
-// sampleFromXM converts an XM sample header to a sample, with loop points converted from bytes to frames
-func sampleFromXM(sh *types.SampleHeader) (Sample, error) {
-	if sh.Flags&types.SampleFlagStereo != 0 {
-		return Sample{}, errors.New("stereo samples are not supported")
-	}
-
-	var bytesPerFrame uint32 = 1
-
-	sixteen := sh.Flags&types.SampleFlag16Bit != 0
-	if sixteen {
-		bytesPerFrame = 2
-	}
-
-	if sh.LoopStart%bytesPerFrame != 0 || sh.LoopLength%bytesPerFrame != 0 {
-		return Sample{}, errors.New("loop point is not aligned to a sample frame")
-	}
-
-	return Sample{
-		Name: sh.Name,
-		Volume: sh.Volume,
-		Finetune: sh.Finetune,
-		Panning: sh.Panning,
-		RelativeNote: sh.RelativeNoteNumber,
-		LoopMode: uint8(sh.Flags & 0x03),
-		LoopStart: sh.LoopStart / bytesPerFrame,
-		LoopLength: sh.LoopLength / bytesPerFrame,
-		Sixteen: sixteen,
-		Data: sh.SampleData,
-	}, nil
-}
-
-// instrumentFromXM converts an XM instrument header to an instrument
-func instrumentFromXM(ih *types.InstrumentHeader) (Instrument, error) {
-	if ih.VolPoints > maxEnvPoints || ih.PanPoints > maxEnvPoints {
-		return Instrument{}, fmt.Errorf("more than %d envelope points", maxEnvPoints)
-	}
-
-	ins := Instrument{
-		Name: ih.Name,
-		Type: ih.Type,
-		Keymap: ih.SampleNumber,
-		VolPoints: append([]types.EnvPoint(nil), ih.VolEnv[:ih.VolPoints]...),
-		PanPoints: append([]types.EnvPoint(nil), ih.PanEnv[:ih.PanPoints]...),
-		VolSustain: ih.VolSustainPoint,
-		VolLoopStart: ih.VolLoopStartPoint,
-		VolLoopEnd: ih.VolLoopEndPoint,
-		VolFlags: uint8(ih.VolFlags),
-		PanSustain: ih.PanSustainPoint,
-		PanLoopStart: ih.PanLoopStartPoint,
-		PanLoopEnd: ih.PanLoopEndPoint,
-		PanFlags: uint8(ih.PanFlags),
-		VibratoType: ih.VibratoType,
-		VibratoSweep: ih.VibratoSweep,
-		VibratoDepth: ih.VibratoDepth,
-		VibratoRate: ih.VibratoRate,
-		VolumeFadeout: ih.VolumeFadeout,
-	}
-
-	for i := range ih.Samples {
-		s, err := sampleFromXM(&ih.Samples[i])
-		if err != nil {
-			return ins, fmt.Errorf("sample %d: %w", i, err)
-		}
-
-		ins.Samples = append(ins.Samples, s)
-	}
-
-	return ins, nil
-}
-
-// FromFile converts an XM file representation into the text format.
-// Sample data is copied into each sample, ready for writing to WAV files.
-func FromFile(f *types.File) (*TextFormat, error) {
-	h := &f.Head
-
-	if h.SongLength > 256 {
-		return nil, fmt.Errorf("song length out of range: %d", h.SongLength)
-	}
-
-	tf := &TextFormat{
-		Name: h.Name,
-		NumChannels: h.NumChannels,
-		NumPatterns: uint16(len(f.Patterns)),
-		NumInstruments: uint16(len(f.Instruments)),
-		Speed: h.DefaultSpeed,
-		Tempo: h.DefaultTempo,
-		LinearSlides: h.Flags&linearSlides != 0,
-		OrderTable: append([]uint8(nil), h.OrderTable[:h.SongLength]...),
-	}
-
-	for _, p := range f.Patterns {
-		pattern := make(Pattern, len(p.Data))
-
-		for r, row := range p.Data {
-			cells := make([]ChannelData, len(row))
-
-			for c, cd := range row {
-				cells[c] = ChannelData{
-					Note: uint8(cd.Note),
-					Instrument: cd.Instrument,
-					Volume: cd.Volume,
-					Effect: cd.Effect,
-					EffectParameter: cd.EffectParameter,
-				}
-			}
-
-			pattern[r] = cells
-		}
-
-		tf.Patterns = append(tf.Patterns, pattern)
-	}
-
-	for i := range f.Instruments {
-		ins, err := instrumentFromXM(&f.Instruments[i])
-		if err != nil {
-			return nil, fmt.Errorf("instrument %d: %w", i, err)
-		}
-
-		tf.Instruments = append(tf.Instruments, ins)
-	}
-
-	return tf, nil
 }

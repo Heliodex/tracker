@@ -80,8 +80,7 @@ type (
 		Panning uint8
 		RelativeNote int8
 		LoopMode uint8
-		LoopStart uint32
-		LoopLength uint32
+		LoopStart, LoopLength uint32
 
 		// Sixteen is set from the WAV file when it is read, and is not stored in the text
 		Sixteen bool
@@ -95,9 +94,7 @@ type (
 		Type uint8
 		Keymap [96]uint8
 		VolPoints, PanPoints []types.EnvPoint
-		VolSustain, VolLoopStart, VolLoopEnd, VolFlags uint8
-		PanSustain, PanLoopStart, PanLoopEnd, PanFlags uint8
-		VibratoType, VibratoSweep, VibratoDepth, VibratoRate uint8
+		VolSustain, VolLoopStart, VolLoopEnd, VolFlags, PanSustain, PanLoopStart, PanLoopEnd, PanFlags, VibratoType, VibratoSweep, VibratoDepth, VibratoRate uint8
 		VolumeFadeout uint16
 		Samples []Sample
 	}
@@ -105,8 +102,7 @@ type (
 	// TextFormat is the text representation of a module
 	TextFormat struct {
 		Name [20]uint8
-		NumChannels, NumPatterns, NumInstruments uint16
-		Speed, Tempo uint16
+		NumChannels, NumPatterns, NumInstruments, Speed, Tempo uint16
 		LinearSlides bool
 		OrderTable []uint8
 		Patterns []Pattern
@@ -131,115 +127,10 @@ const (
 	// Order entries 254 and 255 are skip and end markers in XM, not patterns
 	orderSkip = 254
 	orderEnd = 255
+
+	// math32Max is the largest value a 32-bit field can hold
+	math32Max = 1<<32 - 1
 )
-
-// readLine returns the next line without its line ending
-func (p *parser) readLine() (string, error) {
-	line, err := p.r.ReadString('\n')
-	if err != nil && (err != io.EOF || line == "") {
-		return "", err
-	}
-
-	p.line++
-
-	return strings.TrimRight(line, "\r\n"), nil
-}
-
-// header reads a line of the form "Kind index", such as "Pattern 0"
-func (p *parser) header(kind string, index int) error {
-	line, err := p.readLine()
-	if err != nil {
-		return fmt.Errorf("expected '%s %d': %w", kind, index, err)
-	}
-
-	rest, ok := strings.CutPrefix(line, kind+" ")
-	if n, err := strconv.Atoi(rest); !ok || err != nil || n != index {
-		return fmt.Errorf("expected '%s %d', got %q", kind, index, line)
-	}
-
-	return nil
-}
-
-// field reads a line of the form "Name: value"
-func (p *parser) field(name string) (string, error) {
-	line, err := p.readLine()
-	if err != nil {
-		return "", fmt.Errorf("expected '%s:': %w", name, err)
-	}
-
-	rest, ok := strings.CutPrefix(line, name+":")
-	if !ok {
-		return "", fmt.Errorf("expected '%s:', got %q", name, line)
-	}
-
-	return strings.TrimPrefix(rest, " "), nil
-}
-
-// numbers reads a "Name: value value ..." line of exactly count integers, each between lo and hi inclusive
-func (p *parser) numbers(name string, count, lo, hi int) ([]int, error) {
-	v, err := p.field(name)
-	if err != nil {
-		return nil, err
-	}
-
-	fields := strings.Fields(v)
-	if len(fields) != count {
-		return nil, fmt.Errorf("%s: expected %d values, got %d", name, count, len(fields))
-	}
-
-	out := make([]int, count)
-
-	for i, f := range fields {
-		n, err := strconv.Atoi(f)
-		if err != nil || n < lo || n > hi {
-			return nil, fmt.Errorf("invalid %s value: %q", name, f)
-		}
-
-		out[i] = n
-	}
-
-	return out, nil
-}
-
-// intField reads a "Name: value" line holding one integer between lo and hi inclusive
-func (p *parser) intField(name string, lo, hi int) (int, error) {
-	v, err := p.numbers(name, 1, lo, hi)
-	if err != nil {
-		return 0, err
-	}
-
-	return v[0], nil
-}
-
-// points reads a "Name: x,y x,y ..." line of envelope points
-func (p *parser) points(name string) ([]types.EnvPoint, error) {
-	v, err := p.field(name)
-	if err != nil {
-		return nil, err
-	}
-
-	fields := strings.Fields(v)
-	if len(fields) > maxEnvPoints {
-		return nil, fmt.Errorf("%s: too many points: %d", name, len(fields))
-	}
-
-	points := make([]types.EnvPoint, len(fields))
-
-	for i, f := range fields {
-		x, y, ok := strings.Cut(f, ",")
-
-		xn, errX := strconv.ParseUint(x, 10, 16)
-		yn, errY := strconv.ParseUint(y, 10, 16)
-
-		if !ok || errX != nil || errY != nil {
-			return nil, fmt.Errorf("invalid %s point: %q", name, f)
-		}
-
-		points[i] = types.EnvPoint{X: uint16(xn), Y: uint16(yn)}
-	}
-
-	return points, nil
-}
 
 // copyName copies a name into dst, failing if it does not fit
 func copyName(dst []uint8, name string) error {
@@ -312,6 +203,106 @@ func parseRow(s string, numChannels int) ([]ChannelData, error) {
 	}
 
 	return row, nil
+}
+
+// readLine returns the next line without its line ending
+func (p *parser) readLine() (string, error) {
+	line, err := p.r.ReadString('\n')
+	if err != nil && (err != io.EOF || line == "") {
+		return "", err
+	}
+
+	p.line++
+
+	return strings.TrimRight(line, "\r\n"), nil
+}
+
+// field reads a line of the form "Name: value"
+func (p *parser) field(name string) (string, error) {
+	line, err := p.readLine()
+	if err != nil {
+		return "", fmt.Errorf("expected '%s:': %w", name, err)
+	}
+
+	rest, ok := strings.CutPrefix(line, name+":")
+	if !ok {
+		return "", fmt.Errorf("expected '%s:', got %q", name, line)
+	}
+
+	return strings.TrimPrefix(rest, " "), nil
+}
+
+func parseOrder(p *parser, tf *TextFormat) error {
+	order, err := p.field("Order")
+	if err != nil {
+		return err
+	}
+
+	for s := range strings.FieldsSeq(order) {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 || n > 255 {
+			return fmt.Errorf("invalid order value: %q", s)
+		}
+
+		tf.OrderTable = append(tf.OrderTable, uint8(n))
+	}
+
+	if len(tf.OrderTable) > maxOrder {
+		return fmt.Errorf("order table too long: %d entries", len(tf.OrderTable))
+	}
+
+	return nil
+}
+
+// header reads a line of the form "Kind index", such as "Pattern 0"
+func (p *parser) header(kind string, index int) error {
+	line, err := p.readLine()
+	if err != nil {
+		return fmt.Errorf("expected '%s %d': %w", kind, index, err)
+	}
+
+	rest, ok := strings.CutPrefix(line, kind+" ")
+	if n, err := strconv.Atoi(rest); !ok || err != nil || n != index {
+		return fmt.Errorf("expected '%s %d', got %q", kind, index, line)
+	}
+
+	return nil
+}
+
+// numbers reads a "Name: value value ..." line of exactly count integers, each between lo and hi inclusive
+func (p *parser) numbers(name string, count, lo, hi int) ([]int, error) {
+	v, err := p.field(name)
+	if err != nil {
+		return nil, err
+	}
+
+	fields := strings.Fields(v)
+	if len(fields) != count {
+		return nil, fmt.Errorf("%s: expected %d values, got %d", name, count, len(fields))
+	}
+
+	out := make([]int, count)
+
+	for i, f := range fields {
+		n, err := strconv.Atoi(f)
+		if err != nil || n < lo || n > hi {
+			return nil, fmt.Errorf("invalid %s value: %q", name, f)
+		}
+
+		out[i] = n
+	}
+
+	return out, nil
+}
+
+// intField reads a "Name: value" line holding one integer between lo and hi inclusive
+func (p *parser) intField(name string, lo, hi int) (int, error) {
+	v, err := p.numbers(name, 1, lo, hi)
+	if err != nil {
+		return 0, err
+	}
+
+	return v[0], nil
 }
 
 func parsePattern(p *parser, index, numChannels int) (Pattern, error) {
@@ -444,8 +435,44 @@ func parseSample(p *parser, index int) (Sample, error) {
 	return s, nil
 }
 
-// math32Max is the largest value a 32-bit field can hold
-const math32Max = 1<<32 - 1
+// points reads a "Name: x,y x,y ..." line of envelope points
+func (p *parser) points(name string) ([]types.EnvPoint, error) {
+	v, err := p.field(name)
+	if err != nil {
+		return nil, err
+	}
+
+	fields := strings.Fields(v)
+	if len(fields) > maxEnvPoints {
+		return nil, fmt.Errorf("%s: too many points: %d", name, len(fields))
+	}
+
+	points := make([]types.EnvPoint, len(fields))
+
+	for i, f := range fields {
+		x, y, ok := strings.Cut(f, ",")
+		xn, errX := strconv.ParseUint(x, 10, 16)
+		yn, errY := strconv.ParseUint(y, 10, 16)
+
+		if !ok || errX != nil || errY != nil {
+			return nil, fmt.Errorf("invalid %s point: %q", name, f)
+		}
+
+		points[i] = types.EnvPoint{
+			X: uint16(xn),
+			Y: uint16(yn),
+		}
+	}
+
+	return points, nil
+}
+
+// readUint8 reads a "Name: value" line holding one byte
+func readUint8(p *parser, name string) (uint8, error) {
+	v, err := p.intField(name, 0, 255)
+
+	return uint8(v), err
+}
 
 func parseInstrument(p *parser, index int) (Instrument, error) {
 	var ins Instrument
@@ -554,13 +581,6 @@ func parseInstrument(p *parser, index int) (Instrument, error) {
 	return ins, nil
 }
 
-// readUint8 reads a "Name: value" line holding one byte
-func readUint8(p *parser, name string) (uint8, error) {
-	v, err := p.intField(name, 0, 255)
-
-	return uint8(v), err
-}
-
 func parseInstruments(p *parser, tf *TextFormat) error {
 	for i := range int(tf.NumInstruments) {
 		blank, err := p.readLine()
@@ -574,28 +594,6 @@ func parseInstruments(p *parser, tf *TextFormat) error {
 		}
 
 		tf.Instruments = append(tf.Instruments, ins)
-	}
-
-	return nil
-}
-
-func parseOrder(p *parser, tf *TextFormat) error {
-	order, err := p.field("Order")
-	if err != nil {
-		return err
-	}
-
-	for _, s := range strings.Fields(order) {
-		n, err := strconv.Atoi(s)
-		if err != nil || n < 0 || n > 255 {
-			return fmt.Errorf("invalid order value: %q", s)
-		}
-
-		tf.OrderTable = append(tf.OrderTable, uint8(n))
-	}
-
-	if len(tf.OrderTable) > maxOrder {
-		return fmt.Errorf("order table too long: %d entries", len(tf.OrderTable))
 	}
 
 	return nil
@@ -678,7 +676,9 @@ func parseText(p *parser) (*TextFormat, error) {
 
 // ReadText reads a text-format module from r
 func ReadText(r io.Reader) (*TextFormat, error) {
-	p := &parser{r: bufio.NewReader(r)}
+	p := &parser{
+		r: bufio.NewReader(r),
+	}
 
 	tf, err := parseText(p)
 	if err != nil {

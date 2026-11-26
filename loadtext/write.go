@@ -8,6 +8,15 @@ import (
 	"github.com/Heliodex/tracker/types"
 )
 
+// checkLine fails if s would break a line of the text format
+func checkLine(what, s string) error {
+	if strings.ContainsAny(s, "\r\n") {
+		return fmt.Errorf("%s contains a line break", what)
+	}
+
+	return nil
+}
+
 // formatHex formats a hex column, using ".." for zero
 func formatHex(v uint8) string {
 	if v == 0 {
@@ -31,20 +40,6 @@ func formatCell(c ChannelData) (string, error) {
 	}, " "), nil
 }
 
-// trimName returns a fixed-size name without its trailing NUL padding
-func trimName(name []uint8) string {
-	return strings.TrimRight(string(name), "\x00")
-}
-
-// checkLine fails if s would break a line of the text format
-func checkLine(what, s string) error {
-	if strings.ContainsAny(s, "\r\n") {
-		return fmt.Errorf("%s contains a line break", what)
-	}
-
-	return nil
-}
-
 // formatInts joins values with spaces, with a leading space so it can follow a "Name:" label
 func formatInts[T ~uint8 | ~int8](vs []T) string {
 	var b strings.Builder
@@ -65,6 +60,41 @@ func formatPoints(points []types.EnvPoint) string {
 	}
 
 	return b.String()
+}
+
+// trimName returns a fixed-size name without its trailing NUL padding
+func trimName(name []uint8) string {
+	return strings.TrimRight(string(name), "\x00")
+}
+
+func writePattern(b *strings.Builder, index int, tf *TextFormat, pattern Pattern) error {
+	if len(pattern) < 1 || len(pattern) > maxRows {
+		return fmt.Errorf("pattern %d: row count out of range: %d", index, len(pattern))
+	}
+
+	fmt.Fprintf(b, "\nPattern %d\n", index)
+	fmt.Fprintf(b, "Rows: %d\n", len(pattern))
+
+	for r, row := range pattern {
+		if len(row) != int(tf.NumChannels) {
+			return fmt.Errorf("pattern %d row %d: expected %d channels, got %d", index, r, tf.NumChannels, len(row))
+		}
+
+		cells := make([]string, len(row))
+
+		for c, cd := range row {
+			cell, err := formatCell(cd)
+			if err != nil {
+				return fmt.Errorf("pattern %d row %d channel %d: %w", index, r, c+1, err)
+			}
+
+			cells[c] = cell
+		}
+
+		fmt.Fprintf(b, "Row %03d: %s\n", r, strings.Join(cells, " | "))
+	}
+
+	return nil
 }
 
 func writeSample(b *strings.Builder, index int, s *Sample) error {
@@ -140,36 +170,6 @@ func writeInstrument(b *strings.Builder, index int, ins *Instrument) error {
 	return nil
 }
 
-func writePattern(b *strings.Builder, index int, tf *TextFormat, pattern Pattern) error {
-	if len(pattern) < 1 || len(pattern) > maxRows {
-		return fmt.Errorf("pattern %d: row count out of range: %d", index, len(pattern))
-	}
-
-	fmt.Fprintf(b, "\nPattern %d\n", index)
-	fmt.Fprintf(b, "Rows: %d\n", len(pattern))
-
-	for r, row := range pattern {
-		if len(row) != int(tf.NumChannels) {
-			return fmt.Errorf("pattern %d row %d: expected %d channels, got %d", index, r, tf.NumChannels, len(row))
-		}
-
-		cells := make([]string, len(row))
-
-		for c, cd := range row {
-			cell, err := formatCell(cd)
-			if err != nil {
-				return fmt.Errorf("pattern %d row %d channel %d: %w", index, r, c+1, err)
-			}
-
-			cells[c] = cell
-		}
-
-		fmt.Fprintf(b, "Row %03d: %s\n", r, strings.Join(cells, " | "))
-	}
-
-	return nil
-}
-
 // WriteText writes tf to w in the text format
 func WriteText(w io.Writer, tf *TextFormat) error {
 	if tf.NumChannels < 1 || tf.NumChannels > maxChannels {
@@ -185,6 +185,7 @@ func WriteText(w io.Writer, tf *TextFormat) error {
 	}
 
 	name := trimName(tf.Name[:])
+
 	if err := checkLine("name", name); err != nil {
 		return err
 	}
@@ -198,7 +199,8 @@ func WriteText(w io.Writer, tf *TextFormat) error {
 	fmt.Fprintf(&b, "Speed: %d\n", tf.Speed)
 	fmt.Fprintf(&b, "Tempo: %d\n", tf.Tempo)
 
-	linear := 0
+	var linear int
+
 	if tf.LinearSlides {
 		linear = 1
 	}

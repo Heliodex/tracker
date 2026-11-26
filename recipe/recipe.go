@@ -27,13 +27,32 @@ import (
 	"strings"
 )
 
-// Rate is the sample rate of every rendered sample. XM stores no sample rate, so this is the rate at which C-4 plays
-const Rate = 8363
+type (
+	wave int
 
-// maxFrames is the longest sample a recipe may describe, about two minutes
-const maxFrames = 1 << 20
+	layer struct {
+		wave wave
+		freq, amp, duty, phase float64
+	}
 
-type wave int
+	// Recipe is a parsed recipe, ready to render
+	Recipe struct {
+		Frames int
+		Sixteen bool
+		Layers []layer
+	}
+
+	// xorshift is a small deterministic random generator, so noise is the same every time a recipe is rendered
+	xorshift uint32
+)
+
+const (
+	// Rate is the sample rate of every rendered sample. XM stores no sample rate, so this is the rate at which C-4 plays
+	Rate = 8363
+
+	// maxFrames is the longest sample a recipe may describe, about two minutes
+	maxFrames = 1 << 20
+)
 
 const (
 	sine wave = iota
@@ -43,41 +62,83 @@ const (
 	noise
 )
 
-var waveNames = map[string]wave{
-	"sine": sine,
-	"square": square,
-	"triangle": triangle,
-	"saw": saw,
-	"noise": noise,
-}
+var waveNames = map[string]wave{"noise": noise, "saw": saw, "sine": sine, "square": square, "triangle": triangle}
 
-type layer struct {
-	wave wave
-	freq float64
-	amp float64
-	duty float64
-	phase float64
-}
+// parseLayer parses "wave freq amp [duty=x] [phase=x]"
+func parseLayer(value string) (layer, error) {
+	fields := strings.Fields(value)
+	if len(fields) < 3 {
+		return layer{}, fmt.Errorf("layer needs a wave, frequency and amplitude, got %q", value)
+	}
 
-// Recipe is a parsed recipe, ready to render
-type Recipe struct {
-	Frames int
-	Sixteen bool
-	Layers []layer
+	var l layer
+
+	w, ok := waveNames[fields[0]]
+	if !ok {
+		return layer{}, fmt.Errorf("unknown wave %q", fields[0])
+	}
+
+	l.wave = w
+	freq, err := strconv.ParseFloat(fields[1], 64)
+
+	if err != nil || freq <= 0 || freq > Rate/2 {
+		return layer{}, fmt.Errorf("frequency must be above 0 and at most %d Hz, got %q", Rate/2, fields[1])
+	}
+
+	l.freq = freq
+	amp, err := strconv.ParseFloat(fields[2], 64)
+
+	if err != nil || amp < 0 || amp > 1 {
+		return layer{}, fmt.Errorf("amplitude must be between 0 and 1, got %q", fields[2])
+	}
+
+	l.amp = amp
+	l.duty = 0.5
+
+	for _, opt := range fields[3:] {
+		key, v, ok := strings.Cut(opt, "=")
+		if !ok {
+			return layer{}, fmt.Errorf("expected option 'key=value', got %q", opt)
+		}
+
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return layer{}, fmt.Errorf("invalid %s value %q", key, v)
+		}
+
+		switch key {
+		case "duty":
+			if w != square {
+				return layer{}, errors.New("duty only applies to square waves")
+			}
+
+			if f < 0 || f > 1 {
+				return layer{}, fmt.Errorf("duty must be between 0 and 1, got %q", v)
+			}
+
+			l.duty = f
+		case "phase":
+			l.phase = f
+		default:
+			return layer{}, fmt.Errorf("unknown option %q", key)
+		}
+	}
+
+	return l, nil
 }
 
 // Parse reads a recipe from r
 func Parse(r io.Reader) (*Recipe, error) {
 	rc := &Recipe{}
 
-	seenFrames := false
+	var seenFrames bool
+
 	sc := bufio.NewScanner(r)
-	line := 0
 
-	for sc.Scan() {
+	for line := 0; sc.Scan(); {
 		line++
-
 		text := strings.TrimSpace(sc.Text())
+
 		if text == "" || strings.HasPrefix(text, "#") {
 			continue
 		}
@@ -134,72 +195,6 @@ func Parse(r io.Reader) (*Recipe, error) {
 	return rc, nil
 }
 
-// parseLayer parses "wave freq amp [duty=x] [phase=x]"
-func parseLayer(value string) (layer, error) {
-	fields := strings.Fields(value)
-	if len(fields) < 3 {
-		return layer{}, fmt.Errorf("layer needs a wave, frequency and amplitude, got %q", value)
-	}
-
-	var l layer
-
-	w, ok := waveNames[fields[0]]
-	if !ok {
-		return layer{}, fmt.Errorf("unknown wave %q", fields[0])
-	}
-
-	l.wave = w
-
-	freq, err := strconv.ParseFloat(fields[1], 64)
-	if err != nil || freq <= 0 || freq > Rate/2 {
-		return layer{}, fmt.Errorf("frequency must be above 0 and at most %d Hz, got %q", Rate/2, fields[1])
-	}
-
-	l.freq = freq
-
-	amp, err := strconv.ParseFloat(fields[2], 64)
-	if err != nil || amp < 0 || amp > 1 {
-		return layer{}, fmt.Errorf("amplitude must be between 0 and 1, got %q", fields[2])
-	}
-
-	l.amp = amp
-	l.duty = 0.5
-
-	for _, opt := range fields[3:] {
-		key, v, ok := strings.Cut(opt, "=")
-		if !ok {
-			return layer{}, fmt.Errorf("expected option 'key=value', got %q", opt)
-		}
-
-		f, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return layer{}, fmt.Errorf("invalid %s value %q", key, v)
-		}
-
-		switch key {
-		case "duty":
-			if w != square {
-				return layer{}, errors.New("duty only applies to square waves")
-			}
-
-			if f < 0 || f > 1 {
-				return layer{}, fmt.Errorf("duty must be between 0 and 1, got %q", v)
-			}
-
-			l.duty = f
-		case "phase":
-			l.phase = f
-		default:
-			return layer{}, fmt.Errorf("unknown option %q", key)
-		}
-	}
-
-	return l, nil
-}
-
-// xorshift is a small deterministic random generator, so noise is the same every time a recipe is rendered
-type xorshift uint32
-
 // next returns a value from -1 to 1
 func (x *xorshift) next() float64 {
 	v := uint32(*x)
@@ -228,9 +223,9 @@ func waveAt(w wave, p, duty float64, rng *xorshift) float64 {
 		return 4*math.Abs(p-0.5) - 1
 	case saw:
 		return 2*p - 1
-	default:
-		return rng.next()
 	}
+
+	return rng.next()
 }
 
 // Render returns the sample data in XM form: signed 8-bit samples, or signed little-endian 16-bit samples
@@ -242,23 +237,24 @@ func (rc *Recipe) Render() []uint8 {
 
 		for i := range sum {
 			t := float64(i) / Rate
-
 			sum[i] += l.amp * waveAt(l.wave, l.freq*t+l.phase, l.duty, &rng)
 		}
 	}
 
-	peak := 0.0
+	var peak float64
 
 	for _, s := range sum {
 		peak = math.Max(peak, math.Abs(s))
 	}
 
 	scale := 1.0
+
 	if peak > 1 {
 		scale = 1 / peak
 	}
 
 	bytesPerFrame := 1
+
 	if rc.Sixteen {
 		bytesPerFrame = 2
 	}
@@ -266,9 +262,7 @@ func (rc *Recipe) Render() []uint8 {
 	pcm := make([]uint8, 0, rc.Frames*bytesPerFrame)
 
 	for _, s := range sum {
-		v := s * scale
-
-		if rc.Sixteen {
+		if v := s * scale; rc.Sixteen {
 			n := int16(math.Round(v * 32767))
 			pcm = append(pcm, uint8(n), uint8(uint16(n)>>8))
 		} else {
