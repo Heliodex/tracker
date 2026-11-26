@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/song"
 )
 
@@ -58,56 +59,50 @@ const (
 	// swung 8ths behind a laid-back groove
 	speed = 6
 	tempo = 84
-	leadRecipe = `# soft sine lead for sleepy melodies, tuned to C-4
-Frames: 256
-Bits: 16
-Layer: triangle 261.34375 0.155
-Layer: sine 522.6875 0.05
-`
-	keysRecipe = `# dusty rhodes-ish keys, tuned to C-4
-Frames: 256
-Bits: 16
-Layer: triangle 261.34375 0.14
-Layer: sine 261.34375 0.10
-Layer: sine 522.6875 0.03
-`
-	bassRecipe = `# round sub bass, tuned to C-4
-Frames: 256
-Bits: 16
-Layer: sine 261.34375 0.22
-Layer: triangle 261.34375 0.12
-`
-	kickRecipe = `# soft lo-fi thump
-Frames: 2000
-Bits: 16
-Layer: sine 55 0.32
-Layer: sine 110 0.07
-Layer: noise 3000 0.02
-`
-	snareRecipe = `# dusty noise snare with a little body
-Frames: 3000
-Bits: 16
-Layer: noise 1500 0.22
-Layer: triangle 185 0.09
-`
-	hatRecipe = `# short closed hat
-Frames: 800
-Bits: 16
-Layer: noise 1 0.28
-Layer: square 4100 0.03
-`
-	openHatRecipe = `# open hat, longer tail
-Frames: 2000
-Bits: 16
-Layer: noise 1 0.28
-Layer: square 4100 0.03
-`
-	vinylRecipe = `# vinyl crackle bed, loops under the whole song
-Frames: 8000
-Bits: 16
-Layer: noise 1 0.5
-Layer: noise 3000 0.12
-`
+)
+
+var (
+	// soft sine lead for sleepy melodies, tuned to C-4
+	leadRecipe = recipe.New(256).Sixteen().
+		Triangle(261.34375, 0.155).
+		Sine(522.6875, 0.05).String()
+
+	// dusty rhodes-ish keys, tuned to C-4
+	keysRecipe = recipe.New(256).Sixteen().
+		Triangle(261.34375, 0.14).
+		Sine(261.34375, 0.10).
+		Sine(522.6875, 0.03).String()
+
+	// round sub bass, tuned to C-4
+	bassRecipe = recipe.New(256).Sixteen().
+		Sine(261.34375, 0.22).
+		Triangle(261.34375, 0.12).String()
+
+	// soft lo-fi thump
+	kickRecipe = recipe.New(2000).Sixteen().
+		Sine(55, 0.32).
+		Sine(110, 0.07).
+		Noise(3000, 0.02).String()
+
+	// dusty noise snare with a little body
+	snareRecipe = recipe.New(3000).Sixteen().
+		Noise(1500, 0.22).
+		Triangle(185, 0.09).String()
+
+	// short closed hat
+	hatRecipe = recipe.New(800).Sixteen().
+		Noise(1, 0.28).
+		Square(4100, 0.03).String()
+
+	// open hat, longer tail
+	openHatRecipe = recipe.New(2000).Sixteen().
+		Noise(1, 0.28).
+		Square(4100, 0.03).String()
+
+	// vinyl crackle bed, loops under the whole song
+	vinylRecipe = recipe.New(8000).Sixteen().
+		Noise(1, 0.5).
+		Noise(3000, 0.12).String()
 )
 
 var (
