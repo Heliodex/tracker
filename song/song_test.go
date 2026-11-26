@@ -73,7 +73,7 @@ func TestWriteLoadsBack(t *testing.T) {
 	s := New("demo", 2)
 	s.Timing(4, 150)
 
-	lead := s.Instrument(Instrument{Name: "lead", Recipe: squareRecipe, Loop: true, Decay: 20, Pan: 64})
+	lead := s.Instrument(Instrument{Name: "lead", Recipe: squareRecipe, Loop: true, Envelope: []Point{{X: 0, Y: 64}, {X: 20, Y: 0}}, Pan: 64})
 	kick := s.Instrument(Instrument{Name: "kick", Recipe: "Frames: 100\nLayer: sine 55 1\n"})
 
 	p := s.Pattern(16)

@@ -42,14 +42,19 @@ type Instrument struct {
 	Volume int
 	// Pan is the sample panning from 0 (left) to 255 (right). Zero means centre, 128
 	Pan int
-	// Decay, in envelope ticks, fades the volume from full to silent. Zero means no envelope
-	Decay int
+	// Envelope is the volume envelope, as points of tick and volume (0 to 64). Empty means no envelope
+	Envelope []Point
 	// Fadeout is how fast the volume falls after a note off, from 0 to 65535. Zero means 256
 	Fadeout int
 
 	id int
 	recipe *recipe.Recipe
 	song *Song
+}
+
+// Point is a point on an envelope: a tick, and a volume from 0 to 64
+type Point struct {
+	X, Y int
 }
 
 // Song is a module under construction
@@ -237,8 +242,19 @@ func (ins *Instrument) toText() (loadtext.Instrument, error) {
 	li := loadtext.Instrument{VolumeFadeout: uint16(fadeout)}
 	copy(li.Name[:], ins.Name)
 
-	if ins.Decay > 0 {
-		li.VolPoints = []types.EnvPoint{{X: 0, Y: 64}, {X: uint16(ins.Decay), Y: 0}}
+	if len(ins.Envelope) > 0 {
+		if len(ins.Envelope) > 12 {
+			return loadtext.Instrument{}, fmt.Errorf("instrument %q has more than 12 envelope points", ins.Name)
+		}
+
+		for _, pt := range ins.Envelope {
+			if pt.X < 0 || pt.X > 65535 || pt.Y < 0 || pt.Y > 64 {
+				return loadtext.Instrument{}, fmt.Errorf("instrument %q: envelope point %v is out of range", ins.Name, pt)
+			}
+
+			li.VolPoints = append(li.VolPoints, types.EnvPoint{X: uint16(pt.X), Y: uint16(pt.Y)})
+		}
+
 		li.VolFlags = 1
 	}
 
