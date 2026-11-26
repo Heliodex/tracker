@@ -75,72 +75,43 @@ const (
 
 var (
 	// bright sixteenth-note pluck, tuned to C-4
-	arpRecipe = recipe.New(256).Sixteen().
-		Square(261.34375, 0.3).Duty(0.25).
-		Sine(1046.875, 0.06).String()
+	arpRecipe = recipe.New(256).Sixteen().Square(261.34375, 0.3).Duty(0.25).Sine(1046.875, 0.06).String()
 
 	// long bright crash
-	crashRecipe = recipe.New(8000).Sixteen().
-		Noise(1000, 1).
-		Noise(3000, 0.5).String()
+	crashRecipe = recipe.New(8000).Sixteen().Noise(1000, 1).Noise(3000, 0.5).String()
 
 	// soft harmony pad, tuned to C-4
-	harmRecipe = recipe.New(256).Sixteen().
-		Triangle(261.34375, 0.22).
-		Sine(130.671875, 0.1).String()
+	harmRecipe = recipe.New(256).Sixteen().Triangle(261.34375, 0.22).Sine(130.671875, 0.1).String()
 
 	// short tight hat
-	hatRecipe = recipe.New(400).Sixteen().
-		Noise(3500, 1).String()
+	hatRecipe = recipe.New(400).Sixteen().Noise(3500, 1).String()
 
 	// punchy low kick, tuned to C-4 so C-2 lands around 55 Hz
-	kickRecipe = recipe.New(1600).Sixteen().
-		Sine(220, 1).
-		Sine(440, 0.25).String()
+	kickRecipe = recipe.New(1600).Sixteen().Sine(220, 1).Sine(440, 0.25).String()
 
 	// singing saw lead, tuned to C-4
-	leadRecipe = recipe.New(256).Sixteen().
-		Saw(261.34375, 0.35).
-		Square(261.34375, 0.2).Duty(0.25).
-		Sine(522.6875, 0.08).String()
+	leadRecipe = recipe.New(256).Sixteen().Saw(261.34375, 0.35).Square(261.34375, 0.2).Duty(0.25).Sine(522.6875, 0.08).String()
 
 	// open hat for the offbeats
-	openHatRecipe = recipe.New(1600).Sixteen().
-		Noise(3000, 1).String()
+	openHatRecipe = recipe.New(1600).Sixteen().Noise(3000, 1).String()
 
 	// warm sustained pad, tuned to C-4
-	padRecipe = recipe.New(512).Sixteen().
-		Triangle(261.34375, 0.3).
-		Saw(130.671875, 0.1).String()
+	padRecipe = recipe.New(512).Sixteen().Triangle(261.34375, 0.3).Saw(130.671875, 0.1).String()
 
 	// detuned reese bass with a sine sub, tuned to C-4
-	reeseRecipe = recipe.New(512).Sixteen().
-		Saw(261.34375, 0.35).
-		Saw(262.9, 0.35).Phase(0.5).
-		Sine(130.671875, 0.25).String()
+	reeseRecipe = recipe.New(512).Sixteen().Saw(261.34375, 0.35).Saw(262.9, 0.35).Phase(0.5).Sine(130.671875, 0.25).String()
 
 	// filtered-noise swell for the build
-	riserRecipe = recipe.New(6000).Sixteen().
-		Noise(1500, 1).
-		Sine(392, 0.12).String()
+	riserRecipe = recipe.New(6000).Sixteen().Noise(1500, 1).Sine(392, 0.12).String()
 
 	// snappy snare with a little body
-	snareRecipe = recipe.New(2000).Sixteen().
-		Noise(1000, 1).
-		Triangle(185, 0.35).String()
+	snareRecipe = recipe.New(2000).Sixteen().Noise(1000, 1).Triangle(185, 0.35).String()
 
 	// round sub bass, tuned to C-4
-	subRecipe = recipe.New(256).Sixteen().
-		Sine(261.34375, 0.45).
-		Triangle(130.671875, 0.1).String()
+	subRecipe = recipe.New(256).Sixteen().Sine(261.34375, 0.45).Triangle(130.671875, 0.1).String()
 
 	// low tom for fills
-	tomRecipe = recipe.New(1200).Sixteen().
-		Sine(110, 1).
-		Sine(165, 0.3).String()
-)
-
-var (
+	tomRecipe = recipe.New(1200).Sixteen().Sine(110, 1).Sine(165, 0.3).String()
 	progression = []chordBar{
 		{
 			chord: "Dm",

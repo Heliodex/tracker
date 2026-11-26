@@ -63,49 +63,29 @@ const (
 
 var (
 	// soft sine lead for sleepy melodies, tuned to C-4
-	leadRecipe = recipe.New(256).Sixteen().
-		Triangle(261.34375, 0.155).
-		Sine(522.6875, 0.05).String()
+	leadRecipe = recipe.New(256).Sixteen().Triangle(261.34375, 0.155).Sine(522.6875, 0.05).String()
 
 	// dusty rhodes-ish keys, tuned to C-4
-	keysRecipe = recipe.New(256).Sixteen().
-		Triangle(261.34375, 0.14).
-		Sine(261.34375, 0.10).
-		Sine(522.6875, 0.03).String()
+	keysRecipe = recipe.New(256).Sixteen().Triangle(261.34375, 0.14).Sine(261.34375, 0.10).Sine(522.6875, 0.03).String()
 
 	// round sub bass, tuned to C-4
-	bassRecipe = recipe.New(256).Sixteen().
-		Sine(261.34375, 0.22).
-		Triangle(261.34375, 0.12).String()
+	bassRecipe = recipe.New(256).Sixteen().Sine(261.34375, 0.22).Triangle(261.34375, 0.12).String()
 
 	// soft lo-fi thump
-	kickRecipe = recipe.New(2000).Sixteen().
-		Sine(55, 0.32).
-		Sine(110, 0.07).
-		Noise(3000, 0.02).String()
+	kickRecipe = recipe.New(2000).Sixteen().Sine(55, 0.32).Sine(110, 0.07).Noise(3000, 0.02).String()
 
 	// dusty noise snare with a little body
-	snareRecipe = recipe.New(3000).Sixteen().
-		Noise(1500, 0.22).
-		Triangle(185, 0.09).String()
+	snareRecipe = recipe.New(3000).Sixteen().Noise(1500, 0.22).Triangle(185, 0.09).String()
 
 	// short closed hat
-	hatRecipe = recipe.New(800).Sixteen().
-		Noise(1, 0.28).
-		Square(4100, 0.03).String()
+	hatRecipe = recipe.New(800).Sixteen().Noise(1, 0.28).Square(4100, 0.03).String()
 
 	// open hat, longer tail
-	openHatRecipe = recipe.New(2000).Sixteen().
-		Noise(1, 0.28).
-		Square(4100, 0.03).String()
+	openHatRecipe = recipe.New(2000).Sixteen().Noise(1, 0.28).Square(4100, 0.03).String()
 
 	// vinyl crackle bed, loops under the whole song
-	vinylRecipe = recipe.New(8000).Sixteen().
-		Noise(1, 0.5).
-		Noise(3000, 0.12).String()
-)
+	vinylRecipe = recipe.New(8000).Sixteen().Noise(1, 0.5).Noise(3000, 0.12).String()
 
-var (
 	// the loop: Dm9 G13 Cmaj9 A7, a ii-V-I-VI in C with smooth voice leading
 	loop = []chordBar{
 		{

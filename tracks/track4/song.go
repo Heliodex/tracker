@@ -61,69 +61,43 @@ const (
 	tempo = 150
 )
 
-// Sample recipes, all tuned to C-4 (261.34375 Hz), so 256 frames is a clean loop.
-// Amplitudes are kept low so nine channels sum without clipping.
 var (
+	// Sample recipes, all tuned to C-4 (261.34375 Hz), so 256 frames is a clean loop.
+	// Amplitudes are kept low so nine channels sum without clipping.
+
 	// thin pulse lead for the melody
-	leadRecipe = recipe.New(256).Sixteen().
-		Square(261.34375, 0.1725).Duty(0.25).
-		Square(522.6875, 0.05175).Duty(0.25).
-		Sine(130.671875, 0.05175).String()
+	leadRecipe = recipe.New(256).Sixteen().Square(261.34375, 0.1725).Duty(0.25).Square(522.6875, 0.05175).Duty(0.25).Sine(130.671875, 0.05175).String()
 
 	// bright pulse arpeggio
-	arpRecipe = recipe.New(256).Sixteen().
-		Square(261.34375, 0.15525).Duty(0.125).
-		Sine(522.6875, 0.0345).String()
+	arpRecipe = recipe.New(256).Sixteen().Square(261.34375, 0.15525).Duty(0.125).Sine(522.6875, 0.0345).String()
 
 	// triangle bass with a little body
-	bassRecipe = recipe.New(256).Sixteen().
-		Triangle(261.34375, 0.18975).
-		Sine(261.34375, 0.1035).
-		Square(522.6875, 0.02875).String()
+	bassRecipe = recipe.New(256).Sixteen().Triangle(261.34375, 0.18975).Sine(261.34375, 0.1035).Square(522.6875, 0.02875).String()
 
 	// fat pulse for harmony lines and stabs
-	harmRecipe = recipe.New(256).Sixteen().
-		Square(261.34375, 0.1725).Duty(0.5).
-		Square(522.6875, 0.0414).Duty(0.5).String()
+	harmRecipe = recipe.New(256).Sixteen().Square(261.34375, 0.1725).Duty(0.5).Square(522.6875, 0.0414).Duty(0.5).String()
 
 	// soft triangle lead for the bridge
-	mellowRecipe = recipe.New(256).Sixteen().
-		Triangle(261.34375, 0.18975).
-		Sine(522.6875, 0.05175).String()
+	mellowRecipe = recipe.New(256).Sixteen().Triangle(261.34375, 0.18975).Sine(522.6875, 0.05175).String()
 
 	// low sine thump with a little click
-	kickRecipe = recipe.New(2000).Sixteen().
-		Sine(55, 0.345).
-		Sine(110, 0.0805).
-		Noise(4000, 0.023).String()
+	kickRecipe = recipe.New(2000).Sixteen().Sine(55, 0.345).Sine(110, 0.0805).Noise(4000, 0.023).String()
 
 	// noise snare with a little body
-	snareRecipe = recipe.New(3000).Sixteen().
-		Noise(1500, 0.2415).
-		Triangle(185, 0.1035).String()
+	snareRecipe = recipe.New(3000).Sixteen().Noise(1500, 0.2415).Triangle(185, 0.1035).String()
 
 	// short closed hat
-	hatRecipe = recipe.New(800).Sixteen().
-		Noise(1, 0.3105).
-		Square(4100, 0.0345).String()
+	hatRecipe = recipe.New(800).Sixteen().Noise(1, 0.3105).Square(4100, 0.0345).String()
 
 	// open hat, longer tail
-	openHatRecipe = recipe.New(2000).Sixteen().
-		Noise(1, 0.3105).
-		Square(4100, 0.0345).String()
+	openHatRecipe = recipe.New(2000).Sixteen().Noise(1, 0.3105).Square(4100, 0.0345).String()
 
 	// long bright noise crash
-	crashRecipe = recipe.New(8000).Sixteen().
-		Noise(1, 0.2415).
-		Noise(3000, 0.09775).String()
+	crashRecipe = recipe.New(8000).Sixteen().Noise(1, 0.2415).Noise(3000, 0.09775).String()
 
 	// tom, a low sine with a short decay
-	tomRecipe = recipe.New(1200).Sixteen().
-		Sine(110, 0.2645).
-		Sine(165, 0.0805).String()
-)
+	tomRecipe = recipe.New(1200).Sixteen().Sine(110, 0.2645).Sine(165, 0.0805).String()
 
-var (
 	// Progressions: verse Em C G D, chorus G D Em C, bridge Am Em C D
 
 	verseChords = []chordBar{
