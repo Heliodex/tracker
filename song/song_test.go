@@ -162,3 +162,60 @@ func TestWriteLoadsBack(t *testing.T) {
 		t.Errorf("got flags %#x, loop length %d, want forward loop of length 256", s.Flags, s.LoopLength)
 	}
 }
+
+func TestRangeChecksAreReported(t *testing.T) {
+	tests := map[string]func(s *Song){
+		"volume too high": func(s *Song) {
+			s.Instrument(Instrument{Name: "a", Recipe: squareRecipe, Volume: 65})
+		},
+		"pan too high": func(s *Song) {
+			s.Instrument(Instrument{Name: "a", Recipe: squareRecipe, Pan: 256})
+		},
+		"fadeout negative": func(s *Song) {
+			s.Instrument(Instrument{Name: "a", Recipe: squareRecipe, Fadeout: -1})
+		},
+		"vol column too high": func(s *Song) {
+			ins := s.Instrument(Instrument{Name: "a", Recipe: squareRecipe})
+			s.Pattern(2).Hit(0, 0, "C-4", ins, Vol(256))
+		},
+		"pan effect too high": func(s *Song) {
+			ins := s.Instrument(Instrument{Name: "a", Recipe: squareRecipe})
+			s.Pattern(2).Hit(0, 0, "C-4", ins, Pan(-1))
+		},
+		"vibrato too deep": func(s *Song) {
+			ins := s.Instrument(Instrument{Name: "a", Recipe: squareRecipe})
+			s.Pattern(2).Hit(0, 0, "C-4", ins, Vibrato(4, 16))
+		},
+	}
+
+	for name, setup := range tests {
+		t.Run(name, func(t *testing.T) {
+			s := New("x", 1)
+			setup(s)
+
+			if _, err := s.Build(); err == nil {
+				t.Error("expected an error")
+			}
+		})
+	}
+}
+
+func TestInstrumentWithoutEnvelopeGetsFlatEnvelope(t *testing.T) {
+	s := New("x", 1)
+	ins := s.Instrument(Instrument{Name: "a", Recipe: squareRecipe})
+	p := s.Pattern(2)
+	p.Hit(0, 0, "C-4", ins)
+	s.Play(p)
+
+	f, err := s.Build()
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	ih := f.Instruments[0]
+
+	if ih.VolFlags&1 == 0 || ih.VolPoints != 1 || ih.VolEnv[0].Y != 64 {
+		t.Errorf("got flags %d, %d points, first point %+v; want a flat envelope at 64",
+			ih.VolFlags, ih.VolPoints, ih.VolEnv[0])
+	}
+}

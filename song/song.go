@@ -45,7 +45,8 @@ type (
 		Volume int
 		// Pan is the sample panning from 0 (left) to 255 (right). Zero means centre, 128
 		Pan int
-		// Envelope is the volume envelope, as points of tick and volume (0 to 64). Empty means no envelope
+		// Envelope is the volume envelope, as points of tick and volume (0 to 64).
+		// Empty means a flat envelope at full volume, which keeps the note-off fade working
 		Envelope []Point
 		// Fadeout is how fast the volume falls after a note off, from 0 to 65535. Zero means 256
 		Fadeout, id int
@@ -106,6 +107,18 @@ func (s *Song) Instrument(ins Instrument) *Instrument {
 		s.fail("instrument name is longer than 22 characters: %q", in.Name)
 	}
 
+	if in.Volume < 0 || in.Volume > 64 {
+		s.fail("instrument %q: volume must be between 0 and 64, got %d", in.Name, in.Volume)
+	}
+
+	if in.Pan < 0 || in.Pan > 255 {
+		s.fail("instrument %q: pan must be between 0 and 255, got %d", in.Name, in.Pan)
+	}
+
+	if in.Fadeout < 0 || in.Fadeout > 65535 {
+		s.fail("instrument %q: fadeout must be between 0 and 65535, got %d", in.Name, in.Fadeout)
+	}
+
 	rc, err := recipe.Parse(strings.NewReader(in.Recipe))
 	if err != nil {
 		s.fail("instrument %q: %v", in.Name, err)
@@ -143,24 +156,28 @@ func (ins *Instrument) toText() (loadtext.Instrument, error) {
 
 	copy(li.Name[:], ins.Name)
 
-	if len(ins.Envelope) > 0 {
-		if len(ins.Envelope) > 12 {
-			return loadtext.Instrument{}, fmt.Errorf("instrument %q has more than 12 envelope points", ins.Name)
-		}
-
-		for _, pt := range ins.Envelope {
-			if pt.X < 0 || pt.X > 65535 || pt.Y < 0 || pt.Y > 64 {
-				return loadtext.Instrument{}, fmt.Errorf("instrument %q: envelope point %v is out of range", ins.Name, pt)
-			}
-
-			li.VolPoints = append(li.VolPoints, types.EnvPoint{
-				X: uint16(pt.X),
-				Y: uint16(pt.Y),
-			})
-		}
-
-		li.VolFlags = 1
+	// the envelope is always on, so a note off fades out, as it does in the original trackers
+	points := ins.Envelope
+	if len(points) == 0 {
+		points = []Point{{X: 0, Y: 64}}
 	}
+
+	if len(points) > 12 {
+		return loadtext.Instrument{}, fmt.Errorf("instrument %q has more than 12 envelope points", ins.Name)
+	}
+
+	for _, pt := range points {
+		if pt.X < 0 || pt.X > 65535 || pt.Y < 0 || pt.Y > 64 {
+			return loadtext.Instrument{}, fmt.Errorf("instrument %q: envelope point %v is out of range", ins.Name, pt)
+		}
+
+		li.VolPoints = append(li.VolPoints, types.EnvPoint{
+			X: uint16(pt.X),
+			Y: uint16(pt.Y),
+		})
+	}
+
+	li.VolFlags = 1
 
 	sample := loadtext.Sample{
 		Volume: uint8(volume),
@@ -171,9 +188,11 @@ func (ins *Instrument) toText() (loadtext.Instrument, error) {
 
 	copy(sample.Name[:], ins.Name)
 
+	// the loop length is the whole sample, even for a one-shot, where the loop mode ignores it
+	sample.LoopLength = uint32(rc.Frames)
+
 	if ins.Loop {
 		sample.LoopMode = 1
-		sample.LoopLength = uint32(rc.Frames)
 	}
 
 	li.Samples = []loadtext.Sample{sample}
