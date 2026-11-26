@@ -1,0 +1,6 @@
+# warm pad with a slow attack, tuned to C-4
+Frames: 512
+Bits: 16
+Layer: triangle 261.34375 0.3
+Layer: saw 130.671875 0.12
+Layer: sine 65.3359375 0.15

@@ -1,0 +1,5 @@
+# saw lead for chorus harmony, tuned to C-4
+Frames: 256
+Bits: 16
+Layer: saw 261.34375 0.4
+Layer: square 130.671875 0.25

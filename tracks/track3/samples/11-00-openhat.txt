@@ -1,0 +1,4 @@
+# open hat, longer noise tail
+Frames: 3000
+Bits: 16
+Layer: noise 2500 1
