@@ -23,8 +23,7 @@ type (
 		harmonise, roll, crashes, fill bool
 	}
 
-	// chordBar is one bar of Dm - A# - F - C: the arp runs in sixteenths,
-	// and bass gives the eighth-note reese pattern for the bar
+	// chordBar is one bar of Dm - A# - F - C: the arp runs in sixteenths, and bass gives the eighth-note reese pattern for the bar
 	chordBar struct {
 		chord, root string
 		padOct int
