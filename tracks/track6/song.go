@@ -68,7 +68,6 @@ const (
 
 const (
 	rows = 64
-	bars = rows / song.RowsPerBar
 	// speed 6 at 172 BPM gives a row of about 0.087 s and a bar of 1.4 s
 	speed = 6
 	tempo = 172
