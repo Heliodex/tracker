@@ -251,3 +251,31 @@ func TestNewSongCommand(t *testing.T) {
 		t.Errorf("got %d channels, want 2", f.Head.NumChannels)
 	}
 }
+
+func TestBuildSongGo(t *testing.T) {
+	// track3-go is a song.go folder, which the program builds into song.xm
+	dir := "../../tracks/track3-go"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"build", dir}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("build: %v\n%s", err, stderr.String())
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "song.xm"))
+	if err != nil {
+		t.Fatalf("song.xm not written: %v", err)
+	}
+
+	if _, err := load.Read(bytes.NewBuffer(data)); err != nil {
+		t.Errorf("load.Read: %v", err)
+	}
+}
+
+func TestBuildSongGoRejectsOutput(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"build", "-o", "x.xm", "../../tracks/track3-go"}, nil, &stdout, &stderr); err == nil {
+		t.Error("expected an error")
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -27,6 +28,8 @@ const usage = `usage:
   tracker build [-o out.xm] [-f] module.txt
   tracker build [-o out.xm] [-f] folder
       convert a text module, or a folder holding song.txt, to XM (module.xm by default)
+  tracker build folder
+      a folder holding song.go is built by running it with go run; the program writes the module
   tracker render -o out.wav [-f] recipe.txt
       render a sample recipe to a WAV file, to listen to it
   tracker new [-name NAME] [-channels N] [-rows N] [-f] folder
@@ -226,6 +229,14 @@ func build(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return err
 	}
 
+	if dir, ok := songGoDir(in); ok {
+		if o.out != "" {
+			return errors.New("a song.go writes its own output, so -o does not apply")
+		}
+
+		return runSongGo(dir, stdout, stderr)
+	}
+
 	// a folder means its song.txt
 	if in != "-" {
 		if info, err := os.Stat(in); err == nil && info.IsDir() {
@@ -339,4 +350,47 @@ func newSong(args []string, stderr io.Writer) error {
 	}
 
 	return project.NewSong(positional[0], name, channels, rows, force)
+}
+
+// songGoDir returns the folder holding a song.go, when in is that folder or the song.go itself
+func songGoDir(in string) (string, bool) {
+	if in == "-" {
+		return "", false
+	}
+
+	info, err := os.Stat(in)
+	if err != nil {
+		return "", false
+	}
+
+	dir := in
+
+	if !info.IsDir() {
+		if filepath.Base(in) != "song.go" {
+			return "", false
+		}
+
+		dir = filepath.Dir(in)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "song.go")); err != nil {
+		return "", false
+	}
+
+	return dir, true
+}
+
+// runSongGo builds a song folder by running its song.go, which writes its own module.
+// The folder must be inside a Go module, such as this repository.
+func runSongGo(dir string, stdout, stderr io.Writer) error {
+	cmd := exec.Command("go", "run", ".")
+	cmd.Dir = dir
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s: go run failed: %w", dir, err)
+	}
+
+	return nil
 }
