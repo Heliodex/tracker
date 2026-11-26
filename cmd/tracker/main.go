@@ -282,6 +282,10 @@ func render(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return errors.New("render needs -o to choose where to write the WAV")
 	}
 
+	if o.out != "-" && !strings.HasSuffix(o.out, ".wav") {
+		return fmt.Errorf("render writes WAV data, so -o must end in .wav, got %s", o.out)
+	}
+
 	if in != "-" && filepath.Clean(strings.TrimSuffix(o.out, ".wav")+".txt") == filepath.Clean(in) {
 		return fmt.Errorf("writing %s beside %s would make the sample ambiguous", o.out, in)
 	}

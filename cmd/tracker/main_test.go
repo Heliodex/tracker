@@ -194,6 +194,21 @@ func TestRenderRecipe(t *testing.T) {
 	}
 }
 
+func TestRenderNeedsWavOutput(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "lead.txt")
+
+	if err := os.WriteFile(in, []byte("Frames: 64\nLayer: sine 130 0.5\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"render", "-o", filepath.Join(dir, "other.txt"), in}, nil, &stdout, &stderr); err == nil {
+		t.Error("expected an error for a non-WAV output")
+	}
+}
+
 func TestRenderRefusesBesideRecipe(t *testing.T) {
 	dir := t.TempDir()
 	in := filepath.Join(dir, "lead.txt")
