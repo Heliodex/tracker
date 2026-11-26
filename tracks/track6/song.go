@@ -173,7 +173,7 @@ var (
 		{{0, "A-4"}, {2, "A-4"}, {4, "C-5"}, {6, "D-5"}, {8, "F-5"}, {10, "E-5"}, {12, "D-5"}, {14, "A-4"}},
 		{{0, "D-5"}, {2, "D-5"}, {4, "F-5"}, {6, "D-5"}, {8, "A#4"}, {10, "C-5"}, {12, "D-5"}, {14, "F-5"}},
 		{{0, "A-4"}, {2, "C-5"}, {4, "F-5"}, {6, "E-5"}, {8, "C-5"}, {10, "A-4"}, {12, "G-4"}, {14, "A-4"}},
-		{{0, "G-4"}, {2, "A-4"}, {4, "C-5"}, {6, "E-5"}, {8, "D-5"}, {10, "C-5"}, {12, "A-4"}, {14, "G-4"}},
+		{{0, "G-4"}, {4, "C-5"}, {8, "E-5"}, {12, "D-5"}, {14, "###"}},
 	}
 	hookB = [][]hit{
 		{{0, "D-5"}, {3, "F-5"}, {6, "A-5"}, {9, "F-5"}, {12, "D-5"}},
@@ -369,8 +369,14 @@ func (w pattern) drums(b, style int) {
 // melody plays a phrase with optional vibrato, doubling it a fourth below on the harmony channel
 func (w pattern) melody(b int, phrase []hit, cb chordBar, ins *song.Instrument, vol int, harmonise bool, extra ...song.Opt) {
 	for _, h := range phrase {
-		opts := withVol(vol, extra...)
-		w.p.Hit(at(b, h.row), chLead, h.note, ins, opts...)
+		if h.note == "###" {
+			// note offs cut the phrase, and there is no harmony to double
+			w.p.Hit(at(b, h.row), chLead, "###", nil)
+			w.p.Hit(at(b, h.row), chHarm, "###", nil)
+			continue
+		}
+
+		w.p.Hit(at(b, h.row), chLead, h.note, ins, withVol(vol, extra...)...)
 
 		if harmonise {
 			w.p.Hit(at(b, h.row), chHarm, harmony(h.note, cb), w.k.harm, withVol(vol-0x14)...)
