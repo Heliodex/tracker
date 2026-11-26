@@ -1,0 +1,4 @@
+# short closed hat
+Frames: 800
+Bits: 16
+Layer: noise 2000 1

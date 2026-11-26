@@ -1,0 +1,5 @@
+# noise snare with a little body
+Frames: 3000
+Bits: 16
+Layer: noise 1000 1
+Layer: triangle 185 0.25

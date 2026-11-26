@@ -1,0 +1,5 @@
+# low sine thump, played low
+Frames: 2000
+Bits: 16
+Layer: sine 55 1
+Layer: sine 110 0.25
