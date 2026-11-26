@@ -82,7 +82,7 @@ var (
 	arpRecipe = recipe.New(512).Sixteen().Square(261.34375, 0.19).Duty(0.25).Sine(522.6875, 0.06).Sine(1046.875, 0.025).String()
 
 	// A soft mallet for the offbeat chord answer
-	pluckRecipe = recipe.New(768).Sixteen().Triangle(261.34375, 0.20).Saw(261.34375, 0.09).Sine(522.6875, 0.05).String()
+	pluckRecipe = recipe.New(2048).Sixteen().Triangle(261.34375, 0.20).Saw(261.34375, 0.09).Sine(522.6875, 0.05).String()
 
 	// A detuned saw bass with a sine fundamental
 	bassRecipe = recipe.New(256).Sixteen().Saw(261.34375, 0.20).Saw(262.2, 0.13).Phase(0.5).Sine(130.671875, 0.20).String()
@@ -105,8 +105,8 @@ var (
 	// A long bright crash
 	crashRecipe = recipe.New(8000).Sixteen().Noise(1000, 0.40).Noise(3000, 0.22).String()
 
-	// A filtered-noise swell for the builds
-	riserRecipe = recipe.New(8000).Sixteen().Noise(1500, 0.32).Noise(3500, 0.10).String()
+	// A filtered-noise swell, long enough to run across a whole build without looping
+	riserRecipe = recipe.New(60000).Sixteen().Noise(1500, 0.32).Noise(3500, 0.10).String()
 
 	progression = []chordBar{
 		{
@@ -423,10 +423,18 @@ func (w pattern) arrange(sec section, chords []chordBar) {
 
 func intro(s *song.Song, k *kit) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
-	w.arrange(section{
-		padVol: 0x20, arpStep: 2, arpVol: 0x20, pluckStep: 4, pluckVol: 0x1C,
-		leadVol: 0x34, phrase: introLead,
-	}, progression)
+
+	for b, cb := range progression {
+		w.pads(b, cb, 0x20)
+		w.pluck(b, cb, 4, 0x1C)
+		w.melody(b, introLead[b], 0x34, false)
+
+		// Leave the first bar to the pad and mallet, then add the arpeggio
+		if b > 0 {
+			w.arp(b, cb, 2, 0x20)
+		}
+	}
+
 	w.crash(0, 0x20)
 
 	// The bass and beat arrive one layer at a time
@@ -505,25 +513,30 @@ func drop(s *song.Song, k *kit, answer, final bool) *song.Pattern {
 	}
 
 	sec := section{
-		padVol: 0x28, arpStep: 1, arpVol: 0x2C, pluckStep: 2, pluckVol: 0x2C,
-		bassStep: 1, bassVol: 0x38, drumStyle: 2, leadVol: 0x44, phrase: phrase,
+		padVol: 0x2C, arpStep: 1, arpVol: 0x30, pluckStep: 2, pluckVol: 0x30,
+		bassStep: 1, bassVol: 0x3C, drumStyle: 2, leadVol: 0x48, phrase: phrase,
 		echo: true, fill: true,
 	}
 
 	if answer {
 		sec.pluckStep = 4
-		sec.pluckVol = 0x28
+		sec.pluckVol = 0x2C
 	}
 
 	if final {
-		sec.padVol = 0x2C
-		sec.arpVol = 0x30
-		sec.bassVol = 0x3C
+		sec.padVol = 0x30
+		sec.arpVol = 0x34
+		sec.bassVol = 0x40
 		sec.leadVol = 0x4C
 	}
 
 	w.arrange(sec, progression)
 	w.crash(0, 0x38)
+
+	// Syncopated kicks give each drop a different answer before the fill
+	for b, r := range []int{14, 10, 14} {
+		w.p.Hit(at(b+1, r), chKick, "C-2", k.kick, withVol(0x30)...)
+	}
 
 	if !answer {
 		w.crash(2, 0x28)
@@ -590,7 +603,7 @@ func outro(s *song.Song, k *kit) *song.Pattern {
 	w.bass(3, cb, 4, 0x34)
 	w.arp(3, cb, 2, 0x20)
 	w.pluck(3, cb, 4, 0x24)
-	w.melody(3, []hit{{0, "F#5"}, {8, "C#6"}, {12, "A-5"}}, 0x40, false)
+	w.melody(3, []hit{{0, "F#5"}, {8, "C#6"}, {12, "F#5"}}, 0x40, false)
 	w.crash(3, 0x38)
 
 	for _, ch := range []int{chLead, chEcho, chArp, chPluck, chBass, chPadRoot, chPadThird, chPadFifth, chPadNinth} {
@@ -614,7 +627,7 @@ func main() {
 			Pan: 112,
 			Envelope: []song.Point{
 				{X: 0, Y: 0},
-				{X: 3, Y: 64},
+				{X: 1, Y: 64},
 			},
 			Fadeout: 512,
 		}),
@@ -715,12 +728,11 @@ func main() {
 		riser: s.Instrument(song.Instrument{
 			Name: "riser",
 			Recipe: riserRecipe,
-			Loop: true,
 			Volume: 22,
 			Pan: 128,
 			Envelope: []song.Point{
 				{X: 0, Y: 0},
-				{X: 250, Y: 64},
+				{X: 384, Y: 64},
 			},
 			Fadeout: 256,
 		}),
