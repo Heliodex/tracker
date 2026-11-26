@@ -1,0 +1,6 @@
+# bell-like pluck, tuned to C-4
+Frames: 2000
+Bits: 16
+Layer: sine 261.34375 0.5
+Layer: sine 783 0.18
+Layer: sine 1306.7 0.08
