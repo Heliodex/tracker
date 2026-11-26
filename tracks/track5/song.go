@@ -294,7 +294,7 @@ func (w pattern) play(ch, b int, hits []hit, ins *song.Instrument, vol int, extr
 
 // vinyl starts the crackle bed, which loops until the outro lets it ring out
 func (w pattern) vinyl() {
-	w.p.Hit(0, chVinyl, "C-4", w.k.vinyl, withVol(0x30)...)
+	w.p.Hit(0, chVinyl, "C-4", w.k.vinyl, withVol(0x1A)...)
 }
 
 // intro opens with keys and vinyl alone, hats joining in the last bar
@@ -497,7 +497,7 @@ func main() {
 			Name: "vinyl",
 			Recipe: vinylRecipe,
 			Loop: true,
-			Volume: 12,
+			Volume: 6,
 			Pan: 128,
 		}),
 	}
