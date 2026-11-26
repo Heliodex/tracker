@@ -1,10 +1,12 @@
 // Command track3-go writes the night drive track as an XM module, song.xm, in this folder.
 //
-// Run it from the folder with go run .
+// Run it from anywhere inside the repository with go run ./tracks/track3-go, or with tracker build.
 package main
 
 import (
 	"log"
+	"path/filepath"
+	"runtime"
 	"slices"
 
 	"github.com/Heliodex/tracker/song"
@@ -959,7 +961,10 @@ func main() {
 		s.Play(patterns[i])
 	}
 
-	if err := s.Write("song.xm"); err != nil {
+	// write next to this file, wherever the program is run from
+	_, src, _, _ := runtime.Caller(0)
+
+	if err := s.Write(filepath.Join(filepath.Dir(src), "song.xm")); err != nil {
 		log.Fatal(err)
 	}
 }
