@@ -223,3 +223,31 @@ func TestRenderRefusesBesideRecipe(t *testing.T) {
 		t.Error("expected an error")
 	}
 }
+
+func TestNewSongCommand(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "mysong")
+
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"new", "-name", "demo", "-channels", "2", dir}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("new: %v", err)
+	}
+
+	if err := run([]string{"build", dir}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("build: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "song.xm"))
+	if err != nil {
+		t.Fatalf("expected song.xm: %v", err)
+	}
+
+	f, err := load.Read(bytes.NewBuffer(data))
+	if err != nil {
+		t.Fatalf("load.Read: %v", err)
+	}
+
+	if f.Head.NumChannels != 2 {
+		t.Errorf("got %d channels, want 2", f.Head.NumChannels)
+	}
+}

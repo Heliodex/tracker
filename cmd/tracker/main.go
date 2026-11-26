@@ -29,6 +29,8 @@ const usage = `usage:
       convert a text module, or a folder holding song.txt, to XM (module.xm by default)
   tracker render -o out.wav [-f] recipe.txt
       render a sample recipe to a WAV file, to listen to it
+  tracker new [-name NAME] [-channels N] [-rows N] [-f] folder
+      create a folder with an empty song.txt to start from
 
 Flags:
   -d DIR    folder to export a module with instruments into
@@ -68,6 +70,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return build(args[1:], stdin, stdout, stderr)
 	case "render":
 		return render(args[1:], stdin, stdout, stderr)
+	case "new":
+		return newSong(args[1:], stderr)
 	case "help", "-h", "-help", "--help":
 		fmt.Fprint(stdout, usage)
 		return nil
@@ -306,4 +310,33 @@ func render(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	}
 
 	return writeOutput(o.out, o.force, file, stdout)
+}
+
+// newSong creates a folder with an empty song.txt to start from
+func newSong(args []string, stderr io.Writer) error {
+	var (
+		name string
+		channels int
+		rows int
+		force bool
+	)
+
+	fs := flag.NewFlagSet("new", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	fs.StringVar(&name, "name", "", "song name, up to 20 characters")
+	fs.IntVar(&channels, "channels", 4, "number of channels")
+	fs.IntVar(&rows, "rows", 64, "rows in the first pattern")
+	fs.BoolVar(&force, "f", false, "overwrite an existing song.txt")
+
+	positional, err := parseArgs(fs, args)
+	if err != nil {
+		return err
+	}
+
+	if len(positional) != 1 {
+		fmt.Fprintf(stderr, "tracker new: expected one folder, got %d\n\n%s", len(positional), usage)
+		return errUsage
+	}
+
+	return project.NewSong(positional[0], name, channels, rows, force)
 }
