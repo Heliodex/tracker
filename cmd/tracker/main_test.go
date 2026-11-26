@@ -168,3 +168,43 @@ func TestUnknownCommand(t *testing.T) {
 		t.Error("expected an error")
 	}
 }
+
+func TestRenderRecipe(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "lead.txt")
+	out := filepath.Join(dir, "preview.wav")
+
+	if err := os.WriteFile(in, []byte("Frames: 64\nLayer: square 130 0.5\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"render", "-o", out, in}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.HasPrefix(data, []byte("RIFF")) {
+		t.Errorf("output is not a WAV file")
+	}
+}
+
+func TestRenderRefusesBesideRecipe(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "lead.txt")
+
+	if err := os.WriteFile(in, []byte("Frames: 64\nLayer: sine 130 0.5\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"render", "-o", filepath.Join(dir, "lead.wav"), in}, nil, &stdout, &stderr); err == nil {
+		t.Error("expected an error")
+	}
+}

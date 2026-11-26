@@ -14,7 +14,9 @@ import (
 	"github.com/Heliodex/tracker/load"
 	"github.com/Heliodex/tracker/loadtext"
 	"github.com/Heliodex/tracker/project"
+	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/save"
+	"github.com/Heliodex/tracker/wav"
 )
 
 const usage = `usage:
@@ -25,6 +27,8 @@ const usage = `usage:
   tracker build [-o out.xm] [-f] module.txt
   tracker build [-o out.xm] [-f] folder
       convert a text module, or a folder holding song.txt, to XM (module.xm by default)
+  tracker render -o out.wav [-f] recipe.txt
+      render a sample recipe to a WAV file, to listen to it
 
 Flags:
   -d DIR    folder to export a module with instruments into
@@ -62,6 +66,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return export(args[1:], stdin, stdout, stderr)
 	case "build":
 		return build(args[1:], stdin, stdout, stderr)
+	case "render":
+		return render(args[1:], stdin, stdout, stderr)
 	case "help", "-h", "-help", "--help":
 		fmt.Fprint(stdout, usage)
 		return nil
@@ -260,4 +266,40 @@ func build(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	}
 
 	return writeOutput(out, o.force, xm.Bytes(), stdout)
+}
+
+// render writes a sample recipe as a WAV file. It needs -o, so the WAV is never written beside the recipe,
+// where it would make the sample ambiguous
+func render(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	var o options
+
+	in, err := parseOne("render", args, stderr, &o)
+	if err != nil {
+		return err
+	}
+
+	if o.out == "" {
+		return errors.New("render needs -o to choose where to write the WAV")
+	}
+
+	if in != "-" && filepath.Clean(strings.TrimSuffix(o.out, ".wav")+".txt") == filepath.Clean(in) {
+		return fmt.Errorf("writing %s beside %s would make the sample ambiguous", o.out, in)
+	}
+
+	data, err := readInput(in, stdin)
+	if err != nil {
+		return err
+	}
+
+	pcm, sixteen, err := recipe.Render(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("%s: %w", in, err)
+	}
+
+	file, err := wav.Encode(pcm, sixteen)
+	if err != nil {
+		return err
+	}
+
+	return writeOutput(o.out, o.force, file, stdout)
 }

@@ -46,7 +46,8 @@
 // Each channel cell is a note followed by four hex columns: instrument, volume, effect and effect parameter.
 // "..." is an empty note, "###" is note off, and ".." is a zero value.
 //
-// Sample data is not part of the text. File is a path to a WAV file, relative to the text file.
+// Sample data is not part of the text. File is the path to a sample, relative to the text file, without its extension.
+// It resolves to a .wav file, or to a .txt recipe, see package project.
 // Loop points are in frames (samples), not bytes.
 package loadtext
 
