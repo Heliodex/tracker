@@ -325,7 +325,7 @@ func (w pattern) fill(b int) {
 			vol = 0x30 + i*8
 		}
 
-		w.p.Hit(at(b, r), chSnare, "C-4", w.k.snare, withVol(vol, song.Vibrato(5, 1))...)
+		w.p.Hit(at(b, r), chSnare, "C-4", w.k.snare, withVol(vol)...)
 	}
 }
 
@@ -374,7 +374,7 @@ func (w pattern) pads(b int, cb chordBar, vol int) {
 		return
 	}
 
-	pans := [4]int{0x40, 0x68, 0x98, 0xC8}
+	pans := [4]int{0x30, 0x58, 0xA8, 0xD8}
 
 	for i, note := range cb.pad {
 		w.p.Hit(at(b, 0), chPadRoot+i, note, w.k.pad, withVol(vol, song.Pan(pans[i]))...)
@@ -392,7 +392,13 @@ func (w pattern) pluck(b int, cb chordBar, step, vol int) {
 			break
 		}
 
-		w.p.Hit(at(b, r), chPluck, cb.pluck[i], w.k.pluck, withVol(vol, song.Pan(0xB0))...)
+		pan := 0x70
+
+		if i%2 == 1 {
+			pan = 0xC0
+		}
+
+		w.p.Hit(at(b, r), chPluck, cb.pluck[i], w.k.pluck, withVol(vol, song.Pan(pan))...)
 	}
 }
 
@@ -624,7 +630,7 @@ func main() {
 			Recipe: leadRecipe,
 			Loop: true,
 			Volume: 34,
-			Pan: 112,
+			Pan: 96,
 			Envelope: []song.Point{
 				{X: 0, Y: 0},
 				{X: 1, Y: 64},
