@@ -102,7 +102,7 @@ var (
 	reeseRecipe = recipe.New(512).Saw(recipe.Note(512, "C-4"), 0.35).Saw(262.9, 0.35).Phase(0.5).Sine(recipe.Note(512, "C-3"), 0.25).String()
 
 	// filtered-noise swell for the build
-	riserRecipe = recipe.New(6000).Noise(1500, 1).Sine(392, 0.12).String()
+	riserRecipe = recipe.New(6000).Noise(1500, 1).Sine(recipe.Note(6000, "G-4"), 0.12).String()
 
 	// snappy snare with a little body
 	snareRecipe = recipe.New(2000).Noise(1000, 1).Triangle(185, 0.35).String()
@@ -874,7 +874,6 @@ func main() {
 		riser: s.Instrument(song.Instrument{
 			Name: "riser",
 			Recipe: riserRecipe,
-			OffCycle: true,
 			Loop: true,
 			Volume: 28,
 			Pan: 128,
