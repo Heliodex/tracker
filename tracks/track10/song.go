@@ -6,13 +6,10 @@ package main
 // low tide – DeepSeek V4.1 Flash
 
 import (
-	"log"
-	"path/filepath"
-	"runtime"
-	"strconv"
-
 	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/song"
+	"log"
+	"strconv"
 )
 
 type (
@@ -252,10 +249,6 @@ var (
 )
 
 // at returns the row at offset r within bar b
-func at(b, r int) int {
-	return b*song.RowsPerBar + r
-}
-
 // upOctave returns note an octave higher, for the bell that doubles the last chorus
 func upOctave(note string) string {
 	octave, err := strconv.Atoi(note[2:])
@@ -267,16 +260,6 @@ func upOctave(note string) string {
 }
 
 // withVol returns a volume-column option, omitted when zero, followed by extra
-func withVol(vol int, extra ...song.Opt) []song.Opt {
-	var opts []song.Opt
-
-	if vol != 0 {
-		opts = append(opts, song.Vol(vol))
-	}
-
-	return append(opts, extra...)
-}
-
 // arp plays the bar's arpeggio in eighths or sixteenths, alternating across the field
 func (w pattern) arp(b int, cb chordBar, step, vol int) {
 	if vol == 0 {
@@ -294,7 +277,7 @@ func (w pattern) arp(b int, cb chordBar, step, vol int) {
 			pan = 0xA8
 		}
 
-		w.p.Hit(at(b, r), chArp, cb.arp[i], w.k.arp, withVol(vol, song.Pan(pan))...)
+		w.p.Hit(song.At(b, r), chArp, cb.arp[i], w.k.arp, song.VolOpts(vol, song.Pan(pan))...)
 	}
 }
 
@@ -336,14 +319,14 @@ func (w pattern) bass(b int, cb chordBar, style, vol int) {
 			cellVol -= 0x08
 		}
 
-		w.p.Hit(at(b, f.row), chBass, f.note, w.k.bass, withVol(cellVol)...)
+		w.p.Hit(song.At(b, f.row), chBass, f.note, w.k.bass, song.VolOpts(cellVol)...)
 	}
 }
 
 // crash puts a crash at the top of a bar
 func (w pattern) crash(b, vol int) {
 	if vol != 0 {
-		w.p.Hit(at(b, 0), chFx, "C-4", w.k.crash, withVol(vol)...)
+		w.p.Hit(song.At(b, 0), chFx, "C-4", w.k.crash, song.VolOpts(vol)...)
 	}
 }
 
@@ -364,17 +347,17 @@ func (w pattern) drums(b, style int) {
 			vol += 0x04
 		}
 
-		w.p.Hit(at(b, r), chKick, "C-2", w.k.kick, withVol(vol)...)
+		w.p.Hit(song.At(b, r), chKick, "C-2", w.k.kick, song.VolOpts(vol)...)
 	}
 
 	if style >= 2 {
-		w.p.Hit(at(b, 4), chSnare, "C-4", w.k.snare, withVol(0x44)...)
-		w.p.Hit(at(b, 12), chSnare, "C-4", w.k.snare, withVol(0x44)...)
+		w.p.Hit(song.At(b, 4), chSnare, "C-4", w.k.snare, song.VolOpts(0x44)...)
+		w.p.Hit(song.At(b, 12), chSnare, "C-4", w.k.snare, song.VolOpts(0x44)...)
 	}
 
 	if style >= 2 {
 		for _, r := range []int{2, 6, 10, 14} {
-			w.p.Hit(at(b, r), chOpenHat, "C-5", w.k.openHat, withVol(0x2C, song.Pan(0xD0))...)
+			w.p.Hit(song.At(b, r), chOpenHat, "C-5", w.k.openHat, song.VolOpts(0x2C, song.Pan(0xD0))...)
 		}
 	}
 
@@ -406,18 +389,18 @@ func (w pattern) drums(b, style int) {
 			pan = 0xA8
 		}
 
-		w.p.Hit(at(b, r), chHat, "C-5", w.k.hat, withVol(vol, song.Pan(pan))...)
+		w.p.Hit(song.At(b, r), chHat, "C-5", w.k.hat, song.VolOpts(vol, song.Pan(pan))...)
 	}
 
 	if style == 3 {
 		for r := 1; r < song.RowsPerBar; r += 2 {
-			w.p.Hit(at(b, r), chShaker, "C-5", w.k.shaker, withVol(0x24, song.Pan(0xC8))...)
+			w.p.Hit(song.At(b, r), chShaker, "C-5", w.k.shaker, song.VolOpts(0x24, song.Pan(0xC8))...)
 		}
 	}
 
 	if style == 4 {
 		for i, r := range []int{8, 10, 12, 13, 14, 15} {
-			w.p.Hit(at(b, r), chSnare, "C-4", w.k.snare, withVol(0x24+i*5)...)
+			w.p.Hit(song.At(b, r), chSnare, "C-4", w.k.snare, song.VolOpts(0x24+i*5)...)
 		}
 	}
 }
@@ -431,7 +414,7 @@ func (w pattern) fill(b int) {
 			vol = 0x2C + i*8
 		}
 
-		w.p.Hit(at(b, r), chSnare, "C-4", w.k.snare, withVol(vol)...)
+		w.p.Hit(song.At(b, r), chSnare, "C-4", w.k.snare, song.VolOpts(vol)...)
 	}
 }
 
@@ -442,7 +425,7 @@ func (w pattern) melody(b int, phrase []hit, vol int) {
 	}
 
 	for i, h := range phrase {
-		w.p.Hit(at(b, h.row), chLead, h.note, w.k.lead, withVol(vol, song.Vibrato(4, 2))...)
+		w.p.Hit(song.At(b, h.row), chLead, h.note, w.k.lead, song.VolOpts(vol, song.Vibrato(4, 2))...)
 
 		off := song.RowsPerBar - 1
 
@@ -451,7 +434,7 @@ func (w pattern) melody(b int, phrase []hit, vol int) {
 		}
 
 		if off > h.row {
-			w.p.Hit(at(b, off), chLead, "###", nil)
+			w.p.Hit(song.At(b, off), chLead, "###", nil)
 		}
 	}
 }
@@ -465,13 +448,13 @@ func (w pattern) pads(b int, cb chordBar, vol int) {
 	pans := [3]int{0x40, 0x80, 0xC0}
 
 	for i, note := range cb.pad {
-		w.p.Hit(at(b, 0), padCh[i], note, w.k.pad, withVol(vol, song.Pan(pans[i]))...)
+		w.p.Hit(song.At(b, 0), padCh[i], note, w.k.pad, song.VolOpts(vol, song.Pan(pans[i]))...)
 	}
 }
 
 // riser swells across the pattern, stopping before its last row
 func (w pattern) riser(vol int) {
-	w.p.Hit(0, chRiser, "C-4", w.k.riser, withVol(vol)...)
+	w.p.Hit(0, chRiser, "C-4", w.k.riser, song.VolOpts(vol)...)
 	w.p.Hit(rows-1, chRiser, "###", nil)
 }
 
@@ -485,7 +468,7 @@ func (w pattern) stabs(b int, cb chordBar, rows []int, vol int) {
 
 	for _, r := range rows {
 		for i, note := range cb.stab {
-			w.p.Hit(at(b, r), stabCh[i], note, w.k.stab, withVol(vol, song.Pan(pans[i]))...)
+			w.p.Hit(song.At(b, r), stabCh[i], note, w.k.stab, song.VolOpts(vol, song.Pan(pans[i]))...)
 		}
 	}
 }
@@ -586,7 +569,7 @@ func outro(s *song.Song, k *kit) *song.Pattern {
 	w.crash(2, 0x2C)
 	w.melody(2, []hit{{0, "C-5"}, {8, "G#4"}}, 0x38)
 	w.pads(3, cb, 0x36)
-	w.p.Hit(at(3, 0), chBass, "F-2", k.bass, song.Vol(0x34))
+	w.p.Hit(song.At(3, 0), chBass, "F-2", k.bass, song.Vol(0x34))
 	w.stabs(3, cb, []int{0}, 0x2C)
 	w.crash(3, 0x30)
 
@@ -637,11 +620,11 @@ func breakdown(s *song.Song, k *kit) *song.Pattern {
 
 	// a soft pulse and a clap roll bring the drop in
 	for _, r := range []int{0, 8} {
-		w.p.Hit(at(3, r), chKick, "C-2", k.kick, withVol(0x30)...)
+		w.p.Hit(song.At(3, r), chKick, "C-2", k.kick, song.VolOpts(0x30)...)
 	}
 
 	for i, r := range []int{8, 10, 12, 13, 14, 15} {
-		w.p.Hit(at(3, r), chSnare, "C-4", k.snare, withVol(0x24+i*5)...)
+		w.p.Hit(song.At(3, r), chSnare, "C-4", k.snare, song.VolOpts(0x24+i*5)...)
 	}
 
 	return w.p
@@ -683,13 +666,13 @@ func drop(s *song.Song, k *kit, answer, final bool) *song.Pattern {
 	if final {
 		for b, hits := range phrase {
 			for _, h := range hits {
-				w.p.Hit(at(b, h.row), chSpark, upOctave(h.note), k.arp, withVol(0x44, song.Pan(0xB0))...)
+				w.p.Hit(song.At(b, h.row), chSpark, upOctave(h.note), k.arp, song.VolOpts(0x44, song.Pan(0xB0))...)
 			}
 		}
 	}
 
 	// an extra kick pushes the last beat of the pattern
-	w.p.Hit(at(3, 14), chKick, "C-2", k.kick, withVol(0x30)...)
+	w.p.Hit(song.At(3, 14), chKick, "C-2", k.kick, song.VolOpts(0x30)...)
 
 	return w.p
 }
@@ -765,16 +748,7 @@ func main() {
 			Loop: true,
 			Volume: 34,
 			Pan: 96,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 0,
-				},
-				{
-					X: 2,
-					Y: 64,
-				},
-			},
+			Envelope: song.Points(0, 0, 2, 64),
 			Fadeout: 512,
 		}),
 		arp: s.Instrument(song.Instrument{
@@ -782,40 +756,14 @@ func main() {
 			Recipe: arpRecipe,
 			Volume: 28,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 8,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 8, 0),
 		}),
 		stab: s.Instrument(song.Instrument{
 			Name: "rhodes",
 			Recipe: stabRecipe,
 			Volume: 30,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 8,
-					Y: 34,
-				},
-				{
-					X: 18,
-					Y: 12,
-				},
-				{
-					X: 28,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 8, 34, 18, 12, 28, 0),
 			Fadeout: 512,
 		}),
 		bass: s.Instrument(song.Instrument{
@@ -824,16 +772,7 @@ func main() {
 			Loop: true,
 			Volume: 50,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 0,
-				},
-				{
-					X: 2,
-					Y: 64,
-				},
-			},
+			Envelope: song.Points(0, 0, 2, 64),
 		}),
 		pad: s.Instrument(song.Instrument{
 			Name: "wide pad",
@@ -841,16 +780,7 @@ func main() {
 			Loop: true,
 			Volume: 26,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 0,
-				},
-				{
-					X: 8,
-					Y: 64,
-				},
-			},
+			Envelope: song.Points(0, 0, 8, 64),
 			Fadeout: 1024,
 		}),
 		kick: s.Instrument(song.Instrument{
@@ -858,112 +788,49 @@ func main() {
 			Recipe: kickRecipe,
 			Volume: 58,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 16,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 16, 0),
 		}),
 		snare: s.Instrument(song.Instrument{
 			Name: "clap",
 			Recipe: snareRecipe,
 			Volume: 42,
 			Pan: 136,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 14,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 14, 0),
 		}),
 		hat: s.Instrument(song.Instrument{
 			Name: "closed hat",
 			Recipe: hatRecipe,
 			Volume: 28,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 3,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 3, 0),
 		}),
 		openHat: s.Instrument(song.Instrument{
 			Name: "open hat",
 			Recipe: openHatRecipe,
 			Volume: 24,
 			Pan: 208,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 12,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 12, 0),
 		}),
 		shaker: s.Instrument(song.Instrument{
 			Name: "shaker",
 			Recipe: shakerRecipe,
 			Volume: 22,
 			Pan: 200,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 5,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 5, 0),
 		}),
 		crash: s.Instrument(song.Instrument{
 			Name: "crash",
 			Recipe: crashRecipe,
 			Volume: 26,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 64,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 64, 0),
 		}),
 		riser: s.Instrument(song.Instrument{
 			Name: "riser",
 			Recipe: riserRecipe,
 			Volume: 20,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 0,
-				},
-				{
-					X: 384,
-					Y: 64,
-				},
-			},
+			Envelope: song.Points(0, 0, 384, 64),
 			Fadeout: 256,
 		}),
 	}
@@ -983,9 +850,7 @@ func main() {
 	s.Play(introP, introTwoP, grooveP, grooveFullP, breakP, dropP, answerP, grooveFullP, interludeP, buildP, finalP, finalAnswerP, outroP)
 
 	// write next to this file, wherever the program is run from
-	_, src, _, _ := runtime.Caller(0)
-
-	if err := s.Write(filepath.Join(filepath.Dir(src), "song.xm")); err != nil {
+	if err := s.WriteBeside(); err != nil {
 		log.Fatal(err)
 	}
 }

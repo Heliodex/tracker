@@ -6,12 +6,9 @@ package main
 // glass harbour – Haiku 5.5
 
 import (
-	"log"
-	"path/filepath"
-	"runtime"
-
 	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/song"
+	"log"
 )
 
 type (
@@ -86,21 +83,7 @@ var (
 )
 
 // at returns the row of bar b, row r within the bar
-func at(b, r int) int {
-	return b*song.RowsPerBar + r
-}
-
 // withVol returns the options for a cell at volume vol, with any extra options
-func withVol(vol int, extra ...song.Opt) []song.Opt {
-	var opts []song.Opt
-
-	if vol != 0 {
-		opts = append(opts, song.Vol(vol))
-	}
-
-	return append(opts, extra...)
-}
-
 // bass plays the root of the chord on a syncopated figure, with the octave above on the off-beats
 func (w pattern) bass(b int, chord string, vol int) {
 	if vol == 0 {
@@ -117,7 +100,7 @@ func (w pattern) bass(b int, chord string, vol int) {
 			note = high
 		}
 
-		w.p.Hit(at(b, r), chBass, note, w.k.bass, withVol(vol)...)
+		w.p.Hit(song.At(b, r), chBass, note, w.k.bass, song.VolOpts(vol)...)
 	}
 }
 
@@ -134,11 +117,11 @@ func (w pattern) drums(b, style int) {
 	}
 
 	for _, r := range kicks {
-		w.p.Hit(at(b, r), chKick, "C-2", w.k.kick, withVol(0x3C)...)
+		w.p.Hit(song.At(b, r), chKick, "C-2", w.k.kick, song.VolOpts(0x3C)...)
 	}
 
 	for _, r := range []int{4, 12} {
-		w.p.Hit(at(b, r), chSnare, "C-4", w.k.snare, withVol(0x34)...)
+		w.p.Hit(song.At(b, r), chSnare, "C-4", w.k.snare, song.VolOpts(0x34)...)
 	}
 
 	for r := 0; r < song.RowsPerBar; r += 2 {
@@ -148,14 +131,14 @@ func (w pattern) drums(b, style int) {
 			vol = 0x28
 		}
 
-		w.p.Hit(at(b, r), chHat, "C-5", w.k.hat, withVol(vol, song.Pan(0x60+r*4))...)
+		w.p.Hit(song.At(b, r), chHat, "C-5", w.k.hat, song.VolOpts(vol, song.Pan(0x60+r*4))...)
 	}
 }
 
 // fill rolls the snare into the next pattern over the last beat of bar b
 func (w pattern) fill(b int) {
 	for i, r := range []int{12, 13, 14, 15} {
-		w.p.Hit(at(b, r), chSnare, "C-4", w.k.snare, withVol(0x30+i*6)...)
+		w.p.Hit(song.At(b, r), chSnare, "C-4", w.k.snare, song.VolOpts(0x30+i*6)...)
 	}
 }
 
@@ -166,7 +149,7 @@ func (w pattern) melody(b int, phrase []hit, vol int) {
 	}
 
 	for i, h := range phrase {
-		w.p.Hit(at(b, h.row), chLead, h.note, w.k.lead, withVol(vol, song.Vibrato(4, 2))...)
+		w.p.Hit(song.At(b, h.row), chLead, h.note, w.k.lead, song.VolOpts(vol, song.Vibrato(4, 2))...)
 
 		off := song.RowsPerBar - 1
 
@@ -175,7 +158,7 @@ func (w pattern) melody(b int, phrase []hit, vol int) {
 		}
 
 		if off > h.row {
-			w.p.Hit(at(b, off), chLead, "###", nil)
+			w.p.Hit(song.At(b, off), chLead, "###", nil)
 		}
 	}
 }
@@ -189,7 +172,7 @@ func (w pattern) pads(b int, chord string, vol int) {
 	pans := [3]int{0x50, 0x80, 0xB0}
 
 	for i, note := range song.Triad(chord, 3) {
-		w.p.Hit(at(b, 0), chPad+i, note, w.k.pad, withVol(vol, song.Pan(pans[i]))...)
+		w.p.Hit(song.At(b, 0), chPad+i, note, w.k.pad, song.VolOpts(vol, song.Pan(pans[i]))...)
 	}
 }
 
@@ -232,16 +215,7 @@ func main() {
 			Loop: true,
 			Volume: 28,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 0,
-				},
-				{
-					X: 24,
-					Y: 64,
-				},
-			},
+			Envelope: song.Points(0, 0, 24, 64),
 			Fadeout: 1024,
 		}),
 		bass: s.Instrument(song.Instrument{
@@ -250,16 +224,7 @@ func main() {
 			Loop: true,
 			Volume: 48,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 0,
-				},
-				{
-					X: 2,
-					Y: 64,
-				},
-			},
+			Envelope: song.Points(0, 0, 2, 64),
 		}),
 		lead: s.Instrument(song.Instrument{
 			Name: "lead",
@@ -267,16 +232,7 @@ func main() {
 			Loop: true,
 			Volume: 34,
 			Pan: 96,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 0,
-				},
-				{
-					X: 2,
-					Y: 64,
-				},
-			},
+			Envelope: song.Points(0, 0, 2, 64),
 			Fadeout: 512,
 		}),
 		kick: s.Instrument(song.Instrument{
@@ -284,48 +240,21 @@ func main() {
 			Recipe: kickRecipe,
 			Volume: 58,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 14,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 14, 0),
 		}),
 		snare: s.Instrument(song.Instrument{
 			Name: "snare",
 			Recipe: snareRecipe,
 			Volume: 44,
 			Pan: 136,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 16,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 16, 0),
 		}),
 		hat: s.Instrument(song.Instrument{
 			Name: "hat",
 			Recipe: hatRecipe,
 			Volume: 30,
 			Pan: 128,
-			Envelope: []song.Point{
-				{
-					X: 0,
-					Y: 64,
-				},
-				{
-					X: 3,
-					Y: 0,
-				},
-			},
+			Envelope: song.Points(0, 64, 3, 0),
 		}),
 	}
 	intro := newSection(s, k, section{
@@ -361,9 +290,7 @@ func main() {
 
 	s.Play(intro, verseP, verseP, chorusP, breakP, chorusP, outro)
 
-	_, src, _, _ := runtime.Caller(0)
-
-	if err := s.Write(filepath.Join(filepath.Dir(src), "song.xm")); err != nil {
+	if err := s.WriteBeside(); err != nil {
 		log.Fatal(err)
 	}
 }
