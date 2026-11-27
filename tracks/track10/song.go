@@ -83,19 +83,19 @@ var (
 	stabCh = [3]int{chStab1, chStab2, chStab3}
 
 	// A warm, slightly hollow lead that sits between a flute and a voice
-	leadRecipe = recipe.New(256).Triangle(261.34375, 0.32).Sine(261.34375, 0.12).Sine(522.6875, 0.07).Square(261.34375, 0.04).Duty(0.3).String()
+	leadRecipe = recipe.New(256).Triangle(recipe.Note(256, "C-4"), 0.32).Sine(recipe.Note(256, "C-4"), 0.12).Sine(recipe.Note(256, "C-5"), 0.07).Square(recipe.Note(256, "C-4"), 0.04).Duty(0.3).String()
 
 	// A round mallet for the arpeggio
-	arpRecipe = recipe.New(1024).Triangle(261.34375, 0.24).Sine(522.6875, 0.1).Sine(1046.875, 0.03).String()
+	arpRecipe = recipe.New(1024).Triangle(recipe.Note(1024, "C-4"), 0.24).Sine(recipe.Note(1024, "C-5"), 0.1).Sine(1046.875, 0.03).String()
 
 	// A Rhodes-like chord voice, mostly sine with a bell on top
-	stabRecipe = recipe.New(2048).Sine(261.34375, 0.34).Sine(522.6875, 0.1).Sine(784.03125, 0.045).Triangle(261.34375, 0.08).String()
+	stabRecipe = recipe.New(2048).Sine(recipe.Note(2048, "C-4"), 0.34).Sine(recipe.Note(2048, "C-5"), 0.1).Sine(recipe.Note(2048, "G-5"), 0.045).Triangle(recipe.Note(2048, "C-4"), 0.08).String()
 
 	// A deep sine bass with a little grit, tuned to C-4
-	bassRecipe = recipe.New(256).Sine(261.34375, 0.28).Sine(130.671875, 0.12).Saw(261.34375, 0.1).String()
+	bassRecipe = recipe.New(256).Sine(recipe.Note(256, "C-4"), 0.28).Sine(recipe.Note(256, "C-3"), 0.12).Saw(recipe.Note(256, "C-4"), 0.1).String()
 
 	// A wide, slow pad
-	padRecipe = recipe.New(512).Saw(261.34375, 0.1).Triangle(261.34375, 0.14).Sine(261.34375, 0.1).Saw(522.6875, 0.03).String()
+	padRecipe = recipe.New(512).Saw(recipe.Note(512, "C-4"), 0.1).Triangle(recipe.Note(512, "C-4"), 0.14).Sine(recipe.Note(512, "C-4"), 0.1).Saw(recipe.Note(512, "C-5"), 0.03).String()
 
 	// A kick with a click, played at C-2 so its 200 Hz sine lands at 50 Hz
 	kickRecipe = recipe.New(2000).Sine(200, 0.85).Sine(400, 0.15).Noise(3000, 0.02).String()

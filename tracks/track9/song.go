@@ -58,9 +58,9 @@ const (
 )
 
 var (
-	padRecipe = recipe.New(512).Triangle(261.34375, 0.16).Triangle(263.5, 0.12).Sine(130.671875, 0.08).String()
-	bassRecipe = recipe.New(256).Square(130.671875, 0.12).Sine(130.671875, 0.22).Sine(65.3359375, 0.1).String()
-	leadRecipe = recipe.New(256).Square(261.34375, 0.2).Duty(0.3).Sine(523.25, 0.06).String()
+	padRecipe = recipe.New(512).Triangle(recipe.Note(512, "C-4"), 0.16).Triangle(263.5, 0.12).Sine(recipe.Note(512, "C-3"), 0.08).String()
+	bassRecipe = recipe.New(256).Square(recipe.Note(256, "C-3"), 0.12).Sine(recipe.Note(256, "C-3"), 0.22).Sine(recipe.Note(256, "C-2"), 0.1).String()
+	leadRecipe = recipe.New(256).Square(recipe.Note(256, "C-4"), 0.2).Duty(0.3).Sine(523.25, 0.06).String()
 	kickRecipe = recipe.New(2000).Sine(50, 0.9).Sine(100, 0.2).Noise(2000, 0.03).String()
 	snareRecipe = recipe.New(2400).Noise(900, 0.5).Triangle(200, 0.2).String()
 	hatRecipe = recipe.New(400).Noise(4000, 0.35).String()

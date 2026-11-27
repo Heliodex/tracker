@@ -48,6 +48,6 @@ Build it with `go run ./cmd/tracker build tracks/my-song`, which runs the progra
 ## Samples and mixing
 
 - A volume-column value (`song.Vol`) replaces the sample's own volume for that note. The instrument's `Volume` is only the default when the cell has no volume column, so raising it alone changes nothing on notes that set a volume.
-- A looping sample must hold a whole number of cycles of every layer, or it clicks at the loop point. Use frequencies that are multiples of `recipe.Rate` / frames, e.g. 261.34375, 522.6875 and 784.03125 for a 256-frame sample.
+- A looping sample must hold a whole number of cycles of every layer, or it clicks at the loop point. Write pitched layers with `recipe.Note(frames, "C-4")`, which snaps to a whole number of cycles for that frame count, e.g. `recipe.New(256).Sine(recipe.Note(256, "C-4"), 0.3)`. Don't copy the raw frequency between frame counts: 261.34375 is whole cycles for 256 frames but not for 1600.
 - Two copies of a wave with `Phase(0.5)` cancel all odd harmonics, the fundamental included: a saw pad made that way sounds an octave up and hollow. Use harmonic multiples for thickness instead, or a small phase offset when a little beating is wanted.
 - The kick is tuned by note: a 200 Hz sine played at `C-2` sounds at 50 Hz. Don't write the wanted frequency into the recipe if the note is transposed.

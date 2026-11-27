@@ -63,13 +63,13 @@ const (
 
 var (
 	// soft sine lead for sleepy melodies, tuned to C-4
-	leadRecipe = recipe.New(256).Triangle(261.34375, 0.155).Sine(522.6875, 0.05).String()
+	leadRecipe = recipe.New(256).Triangle(recipe.Note(256, "C-4"), 0.155).Sine(recipe.Note(256, "C-5"), 0.05).String()
 
 	// dusty rhodes-ish keys, tuned to C-4
-	keysRecipe = recipe.New(256).Triangle(261.34375, 0.14).Sine(261.34375, 0.10).Sine(522.6875, 0.03).String()
+	keysRecipe = recipe.New(256).Triangle(recipe.Note(256, "C-4"), 0.14).Sine(recipe.Note(256, "C-4"), 0.10).Sine(recipe.Note(256, "C-5"), 0.03).String()
 
 	// round sub bass, tuned to C-4
-	bassRecipe = recipe.New(256).Sine(261.34375, 0.22).Triangle(261.34375, 0.12).String()
+	bassRecipe = recipe.New(256).Sine(recipe.Note(256, "C-4"), 0.22).Triangle(recipe.Note(256, "C-4"), 0.12).String()
 
 	// soft lo-fi thump
 	kickRecipe = recipe.New(2000).Sine(55, 0.32).Sine(110, 0.07).Noise(3000, 0.02).String()

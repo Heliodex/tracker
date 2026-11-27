@@ -54,7 +54,7 @@ const rows = 64
 
 var (
 	// saw bass with a sine sub, tuned to C-4
-	bassRecipe = recipe.New(256).Saw(261.34375, 0.45).Sine(130.671875, 0.35).String()
+	bassRecipe = recipe.New(256).Saw(recipe.Note(256, "C-4"), 0.45).Sine(recipe.Note(256, "C-3"), 0.35).String()
 
 	// bell-like pluck, tuned to C-4
 	bellRecipe = recipe.New(2000).Sine(261.34375, 0.5).Sine(783, 0.18).Sine(1306.7, 0.08).String()
@@ -71,16 +71,16 @@ var (
 	// Recipes for the samples, as they were in tracks/track3/samples
 
 	// thin square lead, tuned to C-4 (261.34 Hz)
-	leadRecipe = recipe.New(256).Square(261.34375, 0.45).Duty(0.25).Sine(522.6875, 0.2).String()
+	leadRecipe = recipe.New(256).Square(recipe.Note(256, "C-4"), 0.45).Duty(0.25).Sine(recipe.Note(256, "C-5"), 0.2).String()
 
 	// open hat, longer noise tail
 	openHatRecipe = recipe.New(3000).Noise(2500, 1).String()
 
 	// soft pad, tuned to C-4
-	padRecipe = recipe.New(512).Triangle(261.34375, 0.35).Sine(130.671875, 0.25).String()
+	padRecipe = recipe.New(512).Triangle(recipe.Note(512, "C-4"), 0.35).Sine(recipe.Note(512, "C-3"), 0.25).String()
 
 	// saw lead for chorus harmony, tuned to C-4
-	sawLeadRecipe = recipe.New(256).Saw(261.34375, 0.4).Square(130.671875, 0.25).String()
+	sawLeadRecipe = recipe.New(256).Saw(recipe.Note(256, "C-4"), 0.4).Square(recipe.Note(256, "C-3"), 0.25).String()
 
 	// noise snare with a little body
 	snareRecipe = recipe.New(3000).Noise(1000, 1).Triangle(185, 0.25).String()
@@ -89,7 +89,7 @@ var (
 	tomRecipe = recipe.New(1200).Sine(110, 1).Sine(165, 0.3).String()
 
 	// warm pad with a slow attack, tuned to C-4
-	warmPadRecipe = recipe.New(512).Triangle(261.34375, 0.3).Saw(130.671875, 0.12).Sine(65.3359375, 0.15).String()
+	warmPadRecipe = recipe.New(512).Triangle(recipe.Note(512, "C-4"), 0.3).Saw(recipe.Note(512, "C-3"), 0.12).Sine(recipe.Note(512, "C-2"), 0.15).String()
 	bridgeChords = []chordBar{
 		{
 			chord: "Dm",

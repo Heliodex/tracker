@@ -75,19 +75,19 @@ const (
 
 var (
 	// A wide saw lead, tuned to C-4
-	leadRecipe = recipe.New(256).Saw(261.34375, 0.23).Saw(262.4, 0.23).Phase(0.5).Square(130.671875, 0.07).Duty(0.25).Sine(522.6875, 0.04).String()
+	leadRecipe = recipe.New(256).Saw(recipe.Note(256, "C-4"), 0.23).Saw(262.4, 0.23).Phase(0.5).Square(recipe.Note(256, "C-3"), 0.07).Duty(0.25).Sine(recipe.Note(256, "C-5"), 0.04).String()
 
 	// A bright, short pulse for the sixteenth-note arpeggio
-	arpRecipe = recipe.New(512).Square(261.34375, 0.19).Duty(0.25).Sine(522.6875, 0.06).Sine(1046.875, 0.025).String()
+	arpRecipe = recipe.New(512).Square(recipe.Note(512, "C-4"), 0.19).Duty(0.25).Sine(recipe.Note(512, "C-5"), 0.06).Sine(1046.875, 0.025).String()
 
 	// A soft mallet for the offbeat chord answer
-	pluckRecipe = recipe.New(2048).Triangle(261.34375, 0.20).Saw(261.34375, 0.09).Sine(522.6875, 0.05).String()
+	pluckRecipe = recipe.New(2048).Triangle(recipe.Note(2048, "C-4"), 0.20).Saw(recipe.Note(2048, "C-4"), 0.09).Sine(recipe.Note(2048, "C-5"), 0.05).String()
 
 	// A detuned saw bass with a sine fundamental
-	bassRecipe = recipe.New(256).Saw(261.34375, 0.20).Saw(262.2, 0.13).Phase(0.5).Sine(130.671875, 0.20).String()
+	bassRecipe = recipe.New(256).Saw(recipe.Note(256, "C-4"), 0.20).Saw(262.2, 0.13).Phase(0.5).Sine(recipe.Note(256, "C-3"), 0.20).String()
 
 	// A wide, restrained pad; its four notes are spread across four channels
-	padRecipe = recipe.New(512).Saw(261.34375, 0.11).Saw(262.4, 0.11).Phase(0.5).Triangle(130.671875, 0.09).Sine(65.3359375, 0.05).String()
+	padRecipe = recipe.New(512).Saw(recipe.Note(512, "C-4"), 0.11).Saw(262.4, 0.11).Phase(0.5).Triangle(recipe.Note(512, "C-3"), 0.09).Sine(recipe.Note(512, "C-2"), 0.05).String()
 
 	// A deep kick with a short click, played at C-2
 	kickRecipe = recipe.New(2000).Sine(220, 0.72).Sine(440, 0.18).Noise(4000, 0.035).String()

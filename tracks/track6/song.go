@@ -75,13 +75,13 @@ const (
 
 var (
 	// bright sixteenth-note pluck, tuned to C-4
-	arpRecipe = recipe.New(256).Square(261.34375, 0.3).Duty(0.25).Sine(1046.875, 0.06).String()
+	arpRecipe = recipe.New(256).Square(recipe.Note(256, "C-4"), 0.3).Duty(0.25).Sine(1046.875, 0.06).String()
 
 	// long bright crash
 	crashRecipe = recipe.New(8000).Noise(1000, 1).Noise(3000, 0.5).String()
 
 	// soft harmony pad, tuned to C-4
-	harmRecipe = recipe.New(256).Triangle(261.34375, 0.22).Sine(130.671875, 0.1).String()
+	harmRecipe = recipe.New(256).Triangle(recipe.Note(256, "C-4"), 0.22).Sine(recipe.Note(256, "C-3"), 0.1).String()
 
 	// short tight hat
 	hatRecipe = recipe.New(400).Noise(3500, 1).String()
@@ -90,16 +90,16 @@ var (
 	kickRecipe = recipe.New(1600).Sine(220, 1).Sine(440, 0.25).String()
 
 	// singing saw lead, tuned to C-4
-	leadRecipe = recipe.New(256).Saw(261.34375, 0.35).Square(261.34375, 0.2).Duty(0.25).Sine(522.6875, 0.08).String()
+	leadRecipe = recipe.New(256).Saw(recipe.Note(256, "C-4"), 0.35).Square(recipe.Note(256, "C-4"), 0.2).Duty(0.25).Sine(recipe.Note(256, "C-5"), 0.08).String()
 
 	// open hat for the offbeats
 	openHatRecipe = recipe.New(1600).Noise(3000, 1).String()
 
 	// warm sustained pad, tuned to C-4
-	padRecipe = recipe.New(512).Triangle(261.34375, 0.3).Saw(130.671875, 0.1).String()
+	padRecipe = recipe.New(512).Triangle(recipe.Note(512, "C-4"), 0.3).Saw(recipe.Note(512, "C-3"), 0.1).String()
 
 	// detuned reese bass with a sine sub, tuned to C-4
-	reeseRecipe = recipe.New(512).Saw(261.34375, 0.35).Saw(262.9, 0.35).Phase(0.5).Sine(130.671875, 0.25).String()
+	reeseRecipe = recipe.New(512).Saw(recipe.Note(512, "C-4"), 0.35).Saw(262.9, 0.35).Phase(0.5).Sine(recipe.Note(512, "C-3"), 0.25).String()
 
 	// filtered-noise swell for the build
 	riserRecipe = recipe.New(6000).Noise(1500, 1).Sine(392, 0.12).String()
@@ -108,7 +108,7 @@ var (
 	snareRecipe = recipe.New(2000).Noise(1000, 1).Triangle(185, 0.35).String()
 
 	// round sub bass, tuned to C-4
-	subRecipe = recipe.New(256).Sine(261.34375, 0.45).Triangle(130.671875, 0.1).String()
+	subRecipe = recipe.New(256).Sine(recipe.Note(256, "C-4"), 0.45).Triangle(recipe.Note(256, "C-3"), 0.1).String()
 
 	// low tom for fills
 	tomRecipe = recipe.New(1200).Sine(110, 1).Sine(165, 0.3).String()

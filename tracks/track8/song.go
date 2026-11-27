@@ -69,10 +69,10 @@ const (
 )
 
 var (
-	leadRecipe = recipe.New(256).Saw(261.34375, 0.22).Saw(262.1, 0.22).Phase(0.5).Square(130.671875, 0.08).Duty(0.25).Sine(522.6875, 0.04).String()
-	bassRecipe = recipe.New(256).Saw(261.34375, 0.24).Saw(262.0, 0.16).Phase(0.5).Sine(130.671875, 0.28).Sine(65.3359375, 0.12).String()
-	padRecipe = recipe.New(512).Triangle(261.34375, 0.18).Saw(130.671875, 0.08).Sine(65.3359375, 0.10).String()
-	arpRecipe = recipe.New(512).Square(261.34375, 0.18).Duty(0.125).Sine(522.6875, 0.06).String()
+	leadRecipe = recipe.New(256).Saw(recipe.Note(256, "C-4"), 0.22).Saw(262.1, 0.22).Phase(0.5).Square(recipe.Note(256, "C-3"), 0.08).Duty(0.25).Sine(recipe.Note(256, "C-5"), 0.04).String()
+	bassRecipe = recipe.New(256).Saw(recipe.Note(256, "C-4"), 0.24).Saw(262.0, 0.16).Phase(0.5).Sine(recipe.Note(256, "C-3"), 0.28).Sine(recipe.Note(256, "C-2"), 0.12).String()
+	padRecipe = recipe.New(512).Triangle(recipe.Note(512, "C-4"), 0.18).Saw(recipe.Note(512, "C-3"), 0.08).Sine(recipe.Note(512, "C-2"), 0.10).String()
+	arpRecipe = recipe.New(512).Square(recipe.Note(512, "C-4"), 0.18).Duty(0.125).Sine(recipe.Note(512, "C-5"), 0.06).String()
 	kickRecipe = recipe.New(2000).Sine(55, 0.9).Sine(110, 0.25).Noise(2000, 0.03).String()
 	snareRecipe = recipe.New(2400).Noise(1200, 0.55).Noise(3200, 0.2).Triangle(180, 0.18).String()
 	hatRecipe = recipe.New(500).Noise(4000, 0.4).Square(4000, 0.03).String()

@@ -66,19 +66,19 @@ var (
 	// Amplitudes are kept low so nine channels sum without clipping.
 
 	// thin pulse lead for the melody
-	leadRecipe = recipe.New(256).Square(261.34375, 0.1725).Duty(0.25).Square(522.6875, 0.05175).Duty(0.25).Sine(130.671875, 0.05175).String()
+	leadRecipe = recipe.New(256).Square(recipe.Note(256, "C-4"), 0.1725).Duty(0.25).Square(recipe.Note(256, "C-5"), 0.05175).Duty(0.25).Sine(recipe.Note(256, "C-3"), 0.05175).String()
 
 	// bright pulse arpeggio
-	arpRecipe = recipe.New(256).Square(261.34375, 0.15525).Duty(0.125).Sine(522.6875, 0.0345).String()
+	arpRecipe = recipe.New(256).Square(recipe.Note(256, "C-4"), 0.15525).Duty(0.125).Sine(recipe.Note(256, "C-5"), 0.0345).String()
 
 	// triangle bass with a little body
-	bassRecipe = recipe.New(256).Triangle(261.34375, 0.18975).Sine(261.34375, 0.1035).Square(522.6875, 0.02875).String()
+	bassRecipe = recipe.New(256).Triangle(recipe.Note(256, "C-4"), 0.18975).Sine(recipe.Note(256, "C-4"), 0.1035).Square(recipe.Note(256, "C-5"), 0.02875).String()
 
 	// fat pulse for harmony lines and stabs
-	harmRecipe = recipe.New(256).Square(261.34375, 0.1725).Duty(0.5).Square(522.6875, 0.0414).Duty(0.5).String()
+	harmRecipe = recipe.New(256).Square(recipe.Note(256, "C-4"), 0.1725).Duty(0.5).Square(recipe.Note(256, "C-5"), 0.0414).Duty(0.5).String()
 
 	// soft triangle lead for the bridge
-	mellowRecipe = recipe.New(256).Triangle(261.34375, 0.18975).Sine(522.6875, 0.05175).String()
+	mellowRecipe = recipe.New(256).Triangle(recipe.Note(256, "C-4"), 0.18975).Sine(recipe.Note(256, "C-5"), 0.05175).String()
 
 	// low sine thump with a little click
 	kickRecipe = recipe.New(2000).Sine(55, 0.345).Sine(110, 0.0805).Noise(4000, 0.023).String()
