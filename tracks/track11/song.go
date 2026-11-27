@@ -1,9 +1,9 @@
-// Command track11 writes "Glass Orchard", a warm broken-beat song, as an XM module.
+// Command track11 writes "glass orchard", a warm broken-beat song, as an XM module.
 //
 // Build it from anywhere inside the repository with go run ./tracks/track11, or with tracker build.
 package main
 
-// Glass Orchard – GPT-6 Luna
+// glass orchard – GPT-6 Luna
 
 import (
 	"log"
@@ -277,7 +277,7 @@ func makeEnding(s *song.Song, k *kit) *song.Pattern {
 }
 
 func main() {
-	s := song.New("Glass Orchard", 11)
+	s := song.New("glass orchard", 11)
 	s.Timing(6, 104)
 	k := makeKit(s)
 
