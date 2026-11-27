@@ -73,9 +73,9 @@ const (
 const (
 	// rows is a full section: eight bars of sixteen rows
 	rows = 128
-	// the rows are sixteenth notes at 168 BPM, which gives a slow jungle roll
+	// the rows are sixteenth notes at 150 BPM, which gives a slow jungle roll
 	speed = 6
-	tempo = 168
+	tempo = 150
 	// base is C-4
 	base = 261.6255653005986
 )
