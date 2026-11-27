@@ -9,6 +9,7 @@ import (
 	"log"
 	"path/filepath"
 	"runtime"
+	"strconv"
 
 	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/song"
@@ -66,6 +67,7 @@ const (
 	chShaker
 	chFx
 	chRiser
+	chSpark
 )
 
 // stabCh and padCh are the three voices of the chord layers, spread across the field
@@ -198,6 +200,16 @@ var (
 // at returns the row at offset r within bar b
 func at(b, r int) int {
 	return b*song.RowsPerBar + r
+}
+
+// upOctave returns note an octave higher, for the bell that doubles the last chorus
+func upOctave(note string) string {
+	octave, err := strconv.Atoi(note[2:])
+	if err != nil || octave >= 7 {
+		panic("note cannot be doubled an octave up: " + note)
+	}
+
+	return note[:2] + strconv.Itoa(octave+1)
 }
 
 // withVol returns a volume-column option, omitted when zero, followed by extra
@@ -590,6 +602,14 @@ func drop(s *song.Song, k *kit, answer, final bool) *song.Pattern {
 	w.crash(0, 0x34)
 	w.crash(2, 0x24)
 
+	if final {
+		for b, hits := range phrase {
+			for _, h := range hits {
+				w.p.Hit(at(b, h.row), chSpark, upOctave(h.note), k.arp, withVol(0x44, song.Pan(0xB0))...)
+			}
+		}
+	}
+
 	// an extra kick pushes the last beat of the pattern
 	w.p.Hit(at(3, 14), chKick, "C-2", k.kick, withVol(0x30)...)
 
@@ -683,7 +703,7 @@ func outro(s *song.Song, k *kit) *song.Pattern {
 }
 
 func main() {
-	s := song.New("low tide", 16)
+	s := song.New("low tide", 17)
 
 	s.Timing(speed, tempo)
 
