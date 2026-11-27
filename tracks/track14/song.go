@@ -41,7 +41,7 @@ type (
 // channels, in the order they appear in the tracker
 const (
 	chLead = iota // the music box
-	chPad0        // three pad voices, chPad0 to chPad0+2
+	chPad0 // three pad voices, chPad0 to chPad0+2
 	chPad1
 	chPad2
 	chBass
@@ -57,7 +57,6 @@ const (
 	barLen = 12
 	bars = 8
 	rows = barLen * bars
-
 	speed = 6
 	// the slowest track in the repo so far is track5 at 84 BPM
 	tempo = 70
@@ -91,34 +90,58 @@ var (
 
 	// verse asks twice, climbing out of the chord and falling back
 	verse = []hit{
-		{0, 0, "A-4"}, {0, 6, "C#5"},
-		{1, 0, "D-5"}, {1, 8, "C#5"},
-		{2, 0, "E-5"}, {2, 6, "C#5"},
-		{3, 0, "B-4"}, {3, 6, "A-4"},
-		{4, 0, "A-4"}, {4, 6, "E-5"},
-		{5, 0, "F#5"}, {5, 8, "D-5"},
-		{6, 0, "C#5"}, {6, 6, "B-4"},
-		{7, 0, "C#5"}, {7, 8, "G#4"},
+		{0, 0, "A-4"},
+		{0, 6, "C#5"},
+		{1, 0, "D-5"},
+		{1, 8, "C#5"},
+		{2, 0, "E-5"},
+		{2, 6, "C#5"},
+		{3, 0, "B-4"},
+		{3, 6, "A-4"},
+		{4, 0, "A-4"},
+		{4, 6, "E-5"},
+		{5, 0, "F#5"},
+		{5, 8, "D-5"},
+		{6, 0, "C#5"},
+		{6, 6, "B-4"},
+		{7, 0, "C#5"},
+		{7, 8, "G#4"},
 	}
 
 	// chorus answers higher and denser, spelling the chords out
 	chorus = []hit{
-		{0, 0, "C#5"}, {0, 4, "E-5"}, {0, 8, "F#5"},
-		{1, 0, "D-5"}, {1, 6, "F#5"},
-		{2, 0, "A-5"}, {2, 4, "G-5"}, {2, 8, "E-5"},
-		{3, 0, "B-4"}, {3, 4, "E-5"}, {3, 8, "G#5"},
-		{4, 0, "A-5"}, {4, 6, "E-5"},
-		{5, 0, "D-5"}, {5, 4, "F#5"}, {5, 8, "A-5"},
-		{6, 0, "E-5"}, {6, 4, "C#5"}, {6, 8, "A-4"},
+		{0, 0, "C#5"},
+		{0, 4, "E-5"},
+		{0, 8, "F#5"},
+		{1, 0, "D-5"},
+		{1, 6, "F#5"},
+		{2, 0, "A-5"},
+		{2, 4, "G-5"},
+		{2, 8, "E-5"},
+		{3, 0, "B-4"},
+		{3, 4, "E-5"},
+		{3, 8, "G#5"},
+		{4, 0, "A-5"},
+		{4, 6, "E-5"},
+		{5, 0, "D-5"},
+		{5, 4, "F#5"},
+		{5, 8, "A-5"},
+		{6, 0, "E-5"},
+		{6, 4, "C#5"},
+		{6, 8, "A-4"},
 		// F-5 is the E# that makes C# major, written enharmonically
-		{7, 0, "C#5"}, {7, 4, "F-5"}, {7, 8, "G#5"},
+		{7, 0, "C#5"},
+		{7, 4, "F-5"},
+		{7, 8, "G#5"},
 	}
 
 	// break drifts low and sparse, leaving room for the drums to return
 	breakPhrase = []hit{
-		{0, 0, "E-4"}, {0, 8, "A-4"},
+		{0, 0, "E-4"},
+		{0, 8, "A-4"},
 		{1, 0, "F#4"},
-		{2, 0, "A-4"}, {2, 8, "C#5"},
+		{2, 0, "A-4"},
+		{2, 8, "C#5"},
 		{3, 0, "B-4"},
 		{4, 4, "A-4"},
 		{5, 0, "D-5"},
@@ -127,29 +150,12 @@ var (
 	}
 
 	// outro resolves down to the root and lets go
-	outroPhrase = []hit{
-		{0, 0, "C#5"},
-		{1, 6, "B-4"},
-		{2, 0, "A-4"},
-	}
+	outroPhrase = []hit{{0, 0, "C#5"}, {1, 6, "B-4"}, {2, 0, "A-4"}}
 )
 
 // at returns the row of row r in bar b, counting 12 rows to the bar
 func at(bar, row int) int {
 	return bar*barLen + row
-}
-
-// pads holds the chord of bar b on the three pad voices, spread across the stereo field
-func (w pattern) pads(b int, chord string, vol int) {
-	if vol == 0 {
-		return
-	}
-
-	pans := [3]int{0x50, 0x80, 0xB0}
-
-	for i, note := range song.Triad(chord, 3) {
-		w.p.Hit(at(b, 0), chPad0+i, note, w.k.pad, song.VolOpts(vol, song.Pan(pans[i]))...)
-	}
 }
 
 // bass bows the root on beat one, answering with the fifth on beat three when full
@@ -202,7 +208,6 @@ func (w pattern) drums(b, style int, pickup bool) {
 
 	if style == 1 {
 		w.p.Hit(at(b, 8), chRim, "C-4", w.k.rim, song.VolOpts(0x2C, song.Pan(0x98))...)
-
 		return
 	}
 
@@ -244,6 +249,44 @@ func (w pattern) melody(phrase []hit, vol int) {
 	}
 }
 
+// pads holds the chord of bar b on the three pad voices, spread across the stereo field
+func (w pattern) pads(b int, chord string, vol int) {
+	if vol == 0 {
+		return
+	}
+
+	pans := [3]int{0x50, 0x80, 0xB0}
+
+	for i, note := range song.Triad(chord, 3) {
+		w.p.Hit(at(b, 0), chPad0+i, note, w.k.pad, song.VolOpts(vol, song.Pan(pans[i]))...)
+	}
+}
+
+// outro thins out to a final held chord, then cuts everything but the vinyl
+func outro(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+
+	for b, chord := range progression[:3] {
+		w.pads(b, chord, 0x2A)
+		w.bass(b, chord, 0x34, false)
+		w.drums(b, 1, false)
+	}
+
+	w.melody(outroPhrase, 0x38)
+
+	// the last chord, held while the lead resolves
+	last := progression[3]
+
+	w.pads(3, last, 0x28)
+	w.bass(3, last, 0x34, false)
+
+	for _, ch := range []int{chLead, chPad0, chPad1, chPad2, chBass, chKick, chRim, chShake} {
+		w.p.Hit(at(4, 0), ch, "###", nil)
+	}
+
+	return w.p
+}
+
 // arrange lays out an eight-bar section, with the layers that section asks for
 func (w pattern) arrange(sec section) {
 	for b, chord := range progression {
@@ -281,30 +324,6 @@ func intro(s *song.Song, k *kit) *song.Pattern {
 
 	for b, chord := range progression {
 		w.pads(b, chord, 0x26)
-	}
-
-	return w.p
-}
-
-// outro thins out to a final held chord, then cuts everything but the vinyl
-func outro(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	for b, chord := range progression[:3] {
-		w.pads(b, chord, 0x2A)
-		w.bass(b, chord, 0x34, false)
-		w.drums(b, 1, false)
-	}
-
-	w.melody(outroPhrase, 0x38)
-
-	// the last chord, held while the lead resolves
-	last := progression[3]
-	w.pads(3, last, 0x28)
-	w.bass(3, last, 0x34, false)
-
-	for _, ch := range []int{chLead, chPad0, chPad1, chPad2, chBass, chKick, chRim, chShake} {
-		w.p.Hit(at(4, 0), ch, "###", nil)
 	}
 
 	return w.p

@@ -4,11 +4,34 @@
 // The samples come from Voyage to Eternity by Big Jim and Winds of Fjords by minomus.
 package main
 
+// voyage to fjords – Hy4 Flash
+
 import (
 	"embed"
 	"log"
 
 	"github.com/Heliodex/tracker/song"
+)
+
+type (
+	// chord is one bar of harmony: a pad triad, an eight-note arpeggio and a bass note with its fifth
+	chord struct {
+		pad [3]string
+		arp [8]string
+		bass, fifth string
+		minor bool
+	}
+
+	// kit holds the instruments, in the order they are added to the song
+	kit struct {
+		arp, arpTight, shimmer, lead, harmony, pad, bass, kick, snare, hat, crash, riser, bell, brass, chordMin, chordMaj, bigjim, noise *song.Instrument
+	}
+
+	// pattern wraps a song pattern with the instruments to play it with
+	pattern struct {
+		p *song.Pattern
+		k *kit
+	}
 )
 
 // rows is the length of every pattern: four bars of sixteen rows
@@ -30,73 +53,46 @@ const (
 	chFX
 )
 
-//go:embed samples
-var samples embed.FS
-
-// sample returns a WAV file from the samples folder
-func sample(name string) []byte {
-	b, err := samples.ReadFile("samples/" + name)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return b
-}
-
-type (
-	// chord is one bar of harmony: a pad triad, an eight-note arpeggio and a bass note with its fifth
-	chord struct {
-		pad [3]string
-		arp [8]string
-		bass, fifth string
-		minor bool
-	}
-
-	// kit holds the instruments, in the order they are added to the song
-	kit struct {
-		arp, arpTight, shimmer, lead, harmony, pad, bass *song.Instrument
-		kick, snare, hat *song.Instrument
-		crash, riser, bell, brass, chordMin, chordMaj *song.Instrument
-		bigjim, noise *song.Instrument
-	}
-
-	// pattern wraps a song pattern with the instruments to play it with
-	pattern struct {
-		p *song.Pattern
-		k *kit
-	}
-)
-
 var (
+	//go:embed samples
+	samples embed.FS
 	dm = chord{
 		pad: [3]string{"D-4", "F-4", "A-4"},
 		arp: [8]string{"D-5", "F-5", "A-5", "D-6", "A-5", "F-5", "D-5", "A-4"},
-		bass: "D-4", fifth: "A-3", minor: true,
+		bass: "D-4",
+		fifth: "A-3",
+		minor: true,
 	}
 	bb = chord{
 		pad: [3]string{"A#3", "D-4", "F-4"},
 		arp: [8]string{"A#4", "D-5", "F-5", "A#5", "F-5", "D-5", "A#4", "F-4"},
-		bass: "A#3", fifth: "F-3",
+		bass: "A#3",
+		fifth: "F-3",
 	}
 	fMaj = chord{
 		pad: [3]string{"F-3", "A-3", "C-4"},
 		arp: [8]string{"F-4", "A-4", "C-5", "F-5", "C-5", "A-4", "F-4", "C-4"},
-		bass: "F-3", fifth: "C-4",
+		bass: "F-3",
+		fifth: "C-4",
 	}
 	cMaj = chord{
 		pad: [3]string{"C-4", "E-4", "G-4"},
 		arp: [8]string{"C-5", "E-5", "G-5", "C-6", "G-5", "E-5", "C-5", "G-4"},
-		bass: "C-4", fifth: "G-3",
+		bass: "C-4",
+		fifth: "G-3",
 	}
 	gm = chord{
 		pad: [3]string{"G-3", "A#3", "D-4"},
 		arp: [8]string{"G-4", "A#4", "D-5", "G-5", "D-5", "A#4", "G-4", "D-4"},
-		bass: "G-3", fifth: "D-4", minor: true,
+		bass: "G-3",
+		fifth: "D-4",
+		minor: true,
 	}
 	aMaj = chord{
 		pad: [3]string{"A-3", "C#4", "E-4"},
 		arp: [8]string{"A-4", "C#5", "E-5", "A-5", "E-5", "C#5", "A-4", "E-4"},
-		bass: "A-3", fifth: "E-4",
+		bass: "A-3",
+		fifth: "E-4",
 	}
 
 	// the four-bar progressions, one chord per bar
@@ -137,30 +133,9 @@ var (
 	}
 )
 
-// pad plays the triad of a chord across the three pad channels
-func (w pattern) pad(b int, cb chord, vol int) {
-	for i, note := range cb.pad {
-		w.p.Hit(song.At(b, 0), chPadLo+i, note, w.k.pad,
-			song.VolOpts(vol, song.Pan(0x40+i*0x40))...)
-	}
-}
-
 // arp plays notes every step rows from the start of bar b
 func (w pattern) arp(b int, notes []string, step, vol int, ins *song.Instrument, ch int) {
 	w.p.Line(ch, song.At(b, 0), step, notes, ins, song.VolOpts(vol)...)
-}
-
-// bass plays the root on the beats, or the root and fifth on every other eighth
-func (w pattern) bass(b int, cb chord, eighths bool, vol int) {
-	w.p.Hit(song.At(b, 0), chBass, cb.bass, w.k.bass, song.VolOpts(vol)...)
-	w.p.Hit(song.At(b, 8), chBass, cb.bass, w.k.bass, song.VolOpts(vol)...)
-
-	if eighths {
-		for i, note := range []string{cb.fifth, cb.fifth} {
-			r := 4 + i*8
-			w.p.Hit(song.At(b, r), chBass, note, w.k.bass, song.VolOpts(vol-0x04)...)
-		}
-	}
 }
 
 // arpFor picks the tight arp for the densely packed patterns
@@ -172,9 +147,18 @@ func arpFor(k *kit, tight bool) *song.Instrument {
 	return k.arp
 }
 
-// melody plays a line of notes on one channel, one every step rows
-func (w pattern) melody(b int, notes []string, step, vol int, ins *song.Instrument, ch int) {
-	w.arp(b, notes, step, vol, ins, ch)
+// bass plays the root on the beats, or the root and fifth on every other eighth
+func (w pattern) bass(b int, cb chord, eighths bool, vol int) {
+	w.p.Hit(song.At(b, 0), chBass, cb.bass, w.k.bass, song.VolOpts(vol)...)
+	w.p.Hit(song.At(b, 8), chBass, cb.bass, w.k.bass, song.VolOpts(vol)...)
+
+	if eighths {
+		for i, note := range []string{cb.fifth, cb.fifth} {
+			r := 4 + i*8
+
+			w.p.Hit(song.At(b, r), chBass, note, w.k.bass, song.VolOpts(vol-0x04)...)
+		}
+	}
 }
 
 // drums lays down the kick, snare and hats for one bar; fill adds a snare roll
@@ -206,11 +190,13 @@ func (w pattern) drums(b, fill int) {
 
 	for i, r := range song.Steps(0, song.RowsPerBar, step) {
 		pan := 0x90
+
 		if i%2 == 0 {
 			pan = 0x60
 		}
 
 		vol := 0x38
+
 		if r%4 == 0 {
 			vol = 0x48
 		}
@@ -225,6 +211,31 @@ func (w pattern) drums(b, fill int) {
 	}
 }
 
+// melody plays a line of notes on one channel, one every step rows
+func (w pattern) melody(b int, notes []string, step, vol int, ins *song.Instrument, ch int) {
+	w.arp(b, notes, step, vol, ins, ch)
+}
+
+// pad plays the triad of a chord across the three pad channels
+func (w pattern) pad(b int, cb chord, vol int) {
+	for i, note := range cb.pad {
+		w.p.Hit(song.At(b, 0), chPadLo+i, note, w.k.pad, song.VolOpts(vol, song.Pan(0x40+i*0x40))...)
+	}
+}
+
+// shimmer scatters airy hits across the stereo field
+func (w pattern) shimmer(b int, rows []int) {
+	for i, r := range rows {
+		pan := 0x40
+
+		if i%2 == 0 {
+			pan = 0xC0
+		}
+
+		w.p.Hit(song.At(b, r), chShimmer, "C-6", w.k.shimmer, song.VolOpts(0x2C, song.Pan(pan))...)
+	}
+}
+
 // stab plays a short sample on the effects channel
 func (w pattern) stab(b, r int, note string, ins *song.Instrument, vol int) {
 	w.p.Hit(song.At(b, r), chFX, note, ins, song.VolOpts(vol)...)
@@ -235,88 +246,22 @@ func (w pattern) crash(b, r, vol int) {
 	w.stab(b, r, "C-5", w.k.crash, vol)
 }
 
-// shimmer scatters airy hits across the stereo field
-func (w pattern) shimmer(b int, rows []int) {
-	for i, r := range rows {
-		pan := 0x40
-		if i%2 == 0 {
-			pan = 0xC0
-		}
-
-		w.p.Hit(song.At(b, r), chShimmer, "C-6", w.k.shimmer,
-			song.VolOpts(0x2C, song.Pan(pan))...)
-	}
-}
-
-func intro(s *song.Song, k *kit) *song.Pattern {
+func breakdown(s *song.Song, k *kit) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
 
-	for b, cb := range verseChords {
-		w.pad(b, cb, 0x34)
+	for b, cb := range breakChords {
+		w.pad(b, cb, 0x38)
 		w.arp(b, cb.arp[:4], 4, 0x3C, k.arp, chArp)
-
-		if b >= 1 {
-			w.shimmer(b, []int{0, 8})
-		}
+		w.melody(b, bellLine[b], 4, 0x38, k.bell, chFX)
+		w.shimmer(b, []int{0, 4, 8, 12})
 	}
 
-	w.stab(1, 12, "D-6", k.bell, 0x30)
-	w.stab(2, 4, "A-5", k.bell, 0x2C)
-	w.stab(3, 0, "C-5", k.riser, 0x2C)
-	w.crash(3, 8, 0x34)
+	w.stab(0, 0, "C-5", k.riser, 0x2C)
+	w.crash(0, 8, 0x34)
 
-	return w.p
-}
-
-// verse plays a four-bar verse; heavy adds eighths, busier drums and the lead
-func verse(s *song.Song, k *kit, heavy bool) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-	arpVol, padVol, bassVol, leadVol := 0x44, 0x38, 0x4C, 0x48
-	if heavy {
-		arpVol, padVol, bassVol, leadVol = 0x4C, 0x3C, 0x50, 0x50
+	for i, vol := range []int{0x1C, 0x28, 0x34, 0x40} {
+		w.p.Hit(song.At(3, 8+i*2), chSnare, "C-5", k.snare, song.Vol(vol))
 	}
-	cs := verseChords
-
-	if heavy {
-		cs = turnChords
-	}
-
-	step := 2
-	if heavy {
-		step = 1
-	}
-
-	for b, cb := range cs {
-		w.pad(b, cb, padVol)
-		notes := cb.arp[:]
-		if heavy {
-			notes = append(cb.arp[:], cb.arp[:]...)
-		}
-
-		w.arp(b, notes, step, arpVol, arpFor(k, heavy), chArp)
-		w.bass(b, cb, heavy, bassVol)
-
-		fill := 1
-		if b == 3 {
-			fill = 2
-		}
-
-		w.drums(b, fill)
-
-		if heavy || b >= 2 {
-			w.melody(b, verseLead[b%len(verseChords)], 4, leadVol, k.lead, chLead)
-		}
-
-		if heavy && b%2 == 1 {
-			w.stab(b, 6, "C-6", k.bell, 0x3C)
-		}
-	}
-
-	if heavy {
-		w.drums(3, 3)
-	}
-
-	w.crash(0, 0, 0x40)
 
 	return w.p
 }
@@ -340,6 +285,7 @@ func chorus(s *song.Song, k *kit, harmony bool) *song.Pattern {
 		w.crash(b, 0, 0x48)
 
 		ins := k.chordMaj
+
 		if cb.minor {
 			ins = k.chordMin
 		}
@@ -353,26 +299,6 @@ func chorus(s *song.Song, k *kit, harmony bool) *song.Pattern {
 	}
 
 	w.drums(3, 3)
-
-	return w.p
-}
-
-func breakdown(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	for b, cb := range breakChords {
-		w.pad(b, cb, 0x38)
-		w.arp(b, cb.arp[:4], 4, 0x3C, k.arp, chArp)
-		w.melody(b, bellLine[b], 4, 0x38, k.bell, chFX)
-		w.shimmer(b, []int{0, 4, 8, 12})
-	}
-
-	w.stab(0, 0, "C-5", k.riser, 0x2C)
-	w.crash(0, 8, 0x34)
-
-	for i, vol := range []int{0x1C, 0x28, 0x34, 0x40} {
-		w.p.Hit(song.At(3, 8+i*2), chSnare, "C-5", k.snare, song.Vol(vol))
-	}
 
 	return w.p
 }
@@ -392,6 +318,26 @@ func finale(s *song.Song, k *kit) *song.Pattern {
 	}
 
 	w.stab(3, 12, "C-5", k.riser, 0x30)
+
+	return w.p
+}
+
+func intro(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+
+	for b, cb := range verseChords {
+		w.pad(b, cb, 0x34)
+		w.arp(b, cb.arp[:4], 4, 0x3C, k.arp, chArp)
+
+		if b >= 1 {
+			w.shimmer(b, []int{0, 8})
+		}
+	}
+
+	w.stab(1, 12, "D-6", k.bell, 0x30)
+	w.stab(2, 4, "A-5", k.bell, 0x2C)
+	w.stab(3, 0, "C-5", k.riser, 0x2C)
+	w.crash(3, 8, 0x34)
 
 	return w.p
 }
@@ -433,9 +379,80 @@ func outro(s *song.Song, k *kit) *song.Pattern {
 	return w.p
 }
 
+// sample returns a WAV file from the samples folder
+func sample(name string) []byte {
+	b, err := samples.ReadFile("samples/" + name)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return b
+}
+
+// verse plays a four-bar verse; heavy adds eighths, busier drums and the lead
+func verse(s *song.Song, k *kit, heavy bool) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+	arpVol, padVol, bassVol, leadVol := 0x44, 0x38, 0x4C, 0x48
+
+	if heavy {
+		arpVol, padVol, bassVol, leadVol = 0x4C, 0x3C, 0x50, 0x50
+	}
+
+	cs := verseChords
+
+	if heavy {
+		cs = turnChords
+	}
+
+	step := 2
+
+	if heavy {
+		step = 1
+	}
+
+	for b, cb := range cs {
+		w.pad(b, cb, padVol)
+
+		notes := cb.arp[:]
+
+		if heavy {
+			notes = append(cb.arp[:], cb.arp[:]...)
+		}
+
+		w.arp(b, notes, step, arpVol, arpFor(k, heavy), chArp)
+		w.bass(b, cb, heavy, bassVol)
+
+		fill := 1
+
+		if b == 3 {
+			fill = 2
+		}
+
+		w.drums(b, fill)
+
+		if heavy || b >= 2 {
+			w.melody(b, verseLead[b%len(verseChords)], 4, leadVol, k.lead, chLead)
+		}
+
+		if heavy && b%2 == 1 {
+			w.stab(b, 6, "C-6", k.bell, 0x3C)
+		}
+	}
+
+	if heavy {
+		w.drums(3, 3)
+	}
+
+	w.crash(0, 0, 0x40)
+
+	return w.p
+}
+
 func main() {
 	s := song.New("voyage to fjords", 12)
+
 	s.Timing(6, 116)
+
 	k := &kit{
 		arp: s.Instrument(song.Instrument{
 			Name: "aharp",
@@ -545,7 +562,6 @@ func main() {
 			Envelope: song.Points(0, 64, 8, 0),
 		}),
 	}
-
 	patterns := []*song.Pattern{
 		intro(s, k),
 		verse(s, k, false),
