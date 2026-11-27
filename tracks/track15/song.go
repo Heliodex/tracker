@@ -27,19 +27,27 @@ type (
 		state uint64
 	}
 
-	// marmelade rain – DeepSeek V4.1 Flash
+	// event is one note or note-off in a melodic phrase, on a row of its bar
+	event struct {
+		row int
+		note string
+		slide bool
+		vol int
+	}
 
-	// chord is one bar of harmony: pads, a bass root and fifth, an arpeggio and a lead phrase
+	// chord is one bar of harmony: pads, a bass root and fifth, an arpeggio and a vocal phrase
 	chord struct {
 		pad [3]string
 		bass, fifth string
-		arp, lead [8]string
+		arp [8]string
+		phrase []event
+		bell string
 		minor bool
 	}
 
 	// kit holds the instruments, numbered as they are added to the song
 	kit struct {
-		pad, choir, air, lead, bell, vox, bass, kick, snare, hat, open, chop, breakLoop, crash, riser, boom, vinyl *song.Instrument
+		pad, choir, lead, bell, vox, bass, kick, snare, hat, open, chop, breakLoop, crash, riser, boom, vinyl *song.Instrument
 	}
 
 	// pattern wraps a song pattern with the instruments to play it with
@@ -90,7 +98,15 @@ var (
 		bass: "C-2",
 		fifth: "G-2",
 		arp: [8]string{"C-5", "D#5", "G-5", "C-6", "G-5", "D#5", "C-5", "G-4"},
-		lead: [8]string{"G-4", "C-5", "D#5", "G-5", "D#5", "C-5", "G-4", "A#4"},
+		phrase: []event{
+			{0, "C-5", false, 0},
+			{3, "G#4", true, -2},
+			{6, "###", false, 0},
+			{8, "F#5", false, 0},
+			{12, "G-5", true, -2},
+			{15, "###", false, 0},
+		},
+		bell: "G-6",
 		minor: true,
 	}
 	ab = chord{
@@ -98,28 +114,60 @@ var (
 		bass: "G#2",
 		fifth: "D#3",
 		arp: [8]string{"G#4", "C-5", "D#5", "G#5", "D#5", "C-5", "G#4", "D#4"},
-		lead: [8]string{"C-5", "D#5", "G-5", "C-6", "G-5", "D#5", "C-5", "D#5"},
+		phrase: []event{
+			{0, "C-5", false, 0},
+			{3, "G-5", true, -2},
+			{6, "###", false, 0},
+			{9, "F-5", false, 0},
+			{12, "D#5", true, -2},
+			{15, "###", false, 0},
+		},
+		bell: "D#6",
 	}
 	eb = chord{
 		pad: [3]string{"D#4", "G-4", "A#4"},
 		bass: "D#2",
 		fifth: "A#2",
 		arp: [8]string{"D#5", "G-5", "A#5", "D#6", "A#5", "G-5", "D#5", "A#4"},
-		lead: [8]string{"A#4", "D#5", "G-5", "A#5", "G-5", "D#5", "A#4", "G-4"},
+		phrase: []event{
+			{0, "A#4", false, 0},
+			{4, "F-5", true, -2},
+			{7, "###", false, 0},
+			{10, "G-5", false, 0},
+			{13, "F#5", true, -2},
+			{15, "###", false, 0},
+		},
+		bell: "F#6",
 	}
 	bb = chord{
 		pad: [3]string{"A#3", "D-4", "F-4"},
 		bass: "A#2",
 		fifth: "F-2",
 		arp: [8]string{"A#4", "D-5", "F-5", "A#5", "F-5", "D-5", "A#4", "F-4"},
-		lead: [8]string{"D-5", "F-5", "A#5", "F-5", "D-5", "C-5", "A#4", "F-4"},
+		phrase: []event{
+			{0, "D-5", false, 0},
+			{4, "A-5", true, -2},
+			{7, "###", false, 0},
+			{10, "A#5", false, 0},
+			{13, "G#5", true, -2},
+			{15, "###", false, 0},
+		},
+		bell: "G#6",
 	}
 	fm = chord{
 		pad: [3]string{"F-3", "G#3", "C-4"},
 		bass: "F-2",
 		fifth: "C-3",
 		arp: [8]string{"F-4", "G#4", "C-5", "F-5", "C-5", "G#4", "F-4", "C-4"},
-		lead: [8]string{"C-5", "F-5", "G#5", "C-6", "G#5", "F-5", "C-5", "G#4"},
+		phrase: []event{
+			{0, "F-4", false, 0},
+			{3, "C-5", true, -2},
+			{6, "###", false, 0},
+			{8, "G#5", false, 0},
+			{12, "G-5", true, -2},
+			{15, "###", false, 0},
+		},
+		bell: "C-6",
 		minor: true,
 	}
 	gMaj = chord{
@@ -127,7 +175,15 @@ var (
 		bass: "G-2",
 		fifth: "D-3",
 		arp: [8]string{"G-4", "B-4", "D-5", "G-5", "D-5", "B-4", "G-4", "D-4"},
-		lead: [8]string{"D-5", "G-5", "B-5", "D-6", "B-5", "G-5", "D-5", "B-4"},
+		phrase: []event{
+			{0, "D-5", false, 0},
+			{3, "B-4", true, -2},
+			{6, "###", false, 0},
+			{8, "F#5", false, 0},
+			{12, "G-5", true, -2},
+			{15, "###", false, 0},
+		},
+		bell: "D-6",
 	}
 
 	// i - VI - III - VII, the dark four-bar loop the track keeps returning to
@@ -330,10 +386,10 @@ func breakSample(kick, snare, hat, open []float64) []float64 {
 	}
 
 	for s := range 16 {
-		gain := 0.26
+		gain := 0.33
 
 		if s%4 == 0 {
-			gain = 0.46
+			gain = 0.55
 		}
 
 		mix(pos(s), hat, gain)
@@ -363,21 +419,10 @@ func breakSample(kick, snare, hat, open []float64) []float64 {
 		mix(pos(h.step), snare, h.gain)
 	}
 
-	mix(pos(6), open, 0.38)
-	mix(pos(14), open, 0.34)
+	mix(pos(6), open, 0.46)
+	mix(pos(14), open, 0.42)
 
 	return normalise(fadeOut(out, 160))
-}
-
-// brighten mixes a looping air sample into a pad, adding top end without adding mud
-func brighten(base, air []float64, amount float64) []float64 {
-	out := append([]float64(nil), base...)
-
-	for i := range out {
-		out[i] += air[i%len(air)] * amount
-	}
-
-	return normalise(out)
 }
 
 // chopSample lifts a short snare slice out of the break, for the pitched chop line
@@ -403,34 +448,6 @@ func chopSample(breakBuf []float64) []float64 {
 	}
 
 	return normalise(out)
-}
-
-// leadSample is a hollow reed with a little detune, tuned to C-4
-func leadSample(frames int) []float64 {
-	out := make([]float64, frames)
-	c := math.Round(base * float64(frames) / rate)
-
-	addWave(out, c, 0.50, 0)
-	addWave(out, c+1, 0.18, 0.2)
-	addWave(out, c*2, 0.10, 0)
-	addWave(out, c*3, 0.18, 0.1)
-	addWave(out, c*4, 0.05, 0)
-	addWave(out, c*5, 0.08, 0.3)
-	addWave(out, c*8, 0.04, 0)
-	addWave(out, c*9, 0.03, 0.2)
-
-	return normalise(out)
-}
-
-// air adds the breathy high texture, alternating sides each bar
-func (w pattern) air(b int, note string, vol int) {
-	pan := 0x50
-
-	if b%2 == 1 {
-		pan = 0xB0
-	}
-
-	w.p.Hit(at(b, 0), chAir, note, w.k.air, song.VolOpts(vol, song.Pan(pan))...)
 }
 
 // bass plays a reese bass: a long root, or a root that slides to the fifth in the second half of the bar
@@ -459,17 +476,19 @@ func (w pattern) bass(b int, c chord, style, vol int) {
 	}
 }
 
-// bellLine plays a bell arpeggio, panning alternate notes
-func (w pattern) bellLine(b int, notes [8]string, step, vol int) {
-	for i, note := range notes {
-		pan := 0x58
-
-		if i%2 == 1 {
-			pan = 0xA8
-		}
-
-		w.p.Hit(at(b, i*step), chBell, note, w.k.bell, song.VolOpts(vol, song.Pan(pan))...)
+// bellAccent drops one high bell note, panned away from the voice
+func (w pattern) bellAccent(b int, c chord, vol, row int) {
+	if c.bell == "" {
+		return
 	}
+
+	pan := 0x60
+
+	if b%2 == 0 {
+		pan = 0xA0
+	}
+
+	w.p.Hit(at(b, row), chBell, c.bell, w.k.bell, song.VolOpts(vol, song.Pan(pan))...)
 }
 
 // breakBeat starts the sampled break at the top of a bar
@@ -543,7 +562,7 @@ func (w pattern) drums(b, style int) {
 		step = 2
 	}
 
-	w.hats(b, step, 0x30, 0x44)
+	w.hats(b, step, 0x34, 0x48)
 
 	if style >= 2 {
 		for i, r := range []int{1, 3, 5, 7, 9, 11, 13, 15} {
@@ -553,11 +572,11 @@ func (w pattern) drums(b, style int) {
 				pan = 0xA8
 			}
 
-			w.p.Hit(at(b, r), chHat, "C-4", w.k.hat, song.VolOpts(0x24, song.Pan(pan))...)
+			w.p.Hit(at(b, r), chHat, "C-4", w.k.hat, song.VolOpts(0x28, song.Pan(pan))...)
 		}
 
-		w.p.Hit(at(b, 6), chOpen, "C-4", w.k.open, song.VolOpts(0x38, song.Pan(0x60))...)
-		w.p.Hit(at(b, 14), chOpen, "C-4", w.k.open, song.VolOpts(0x40, song.Pan(0xA0))...)
+		w.p.Hit(at(b, 6), chOpen, "C-4", w.k.open, song.VolOpts(0x40, song.Pan(0x60))...)
+		w.p.Hit(at(b, 14), chOpen, "C-4", w.k.open, song.VolOpts(0x48, song.Pan(0xA0))...)
 	}
 
 	kicks := []int{0}
@@ -593,13 +612,6 @@ func (w pattern) drums(b, style int) {
 	}
 }
 
-// leadLine plays the lead phrase, with a light vibrato on every note
-func (w pattern) leadLine(b int, notes [8]string, step, vol int) {
-	for i, note := range notes {
-		w.p.Hit(at(b, i*step), chLead, note, w.k.lead, song.VolOpts(vol, song.Vibrato(4, 2))...)
-	}
-}
-
 // pads holds a chord on the three pad voices, spread across the stereo field
 func (w pattern) pads(b int, c chord, vol int) {
 	pans := [3]int{0x48, 0x80, 0xB8}
@@ -608,60 +620,6 @@ func (w pattern) pads(b int, c chord, vol int) {
 		w.p.Hit(at(b, 0), chPadLo+i, note, w.k.pad, song.VolOpts(vol, song.Pan(pans[i]))...)
 		w.p.Hit(at(b, 8), chPadLo+i, "###", nil)
 	}
-}
-
-// outro lets the last chord ring out under the vinyl
-func outro(s *song.Song, k *kit) *song.Pattern {
-	// the final C minor, held while the vinyl runs out
-	const last int = 3
-
-	w := pattern{s.Pattern(rows / 2), k}
-
-	for b := range 3 {
-		c := barChord(verse, b)
-
-		w.pads(b, c, 0x1e)
-		w.choir(b, c, 0x1a)
-
-		if b == 0 {
-			w.fx(b, 0, "C-4", k.crash, 0x40)
-			w.bass(b, c, 0, 0x2a)
-		}
-	}
-
-	w.pads(last, cm, 0x1e)
-	w.choir(last, cm, 0x1c)
-	w.bass(last, cm, 0, 0x28)
-	w.bellLine(last, cm.arp, 2, 0x26)
-
-	// ease the last chord and the vinyl down over the final rows
-	for r := 10; r < 15; r++ {
-		for _, ch := range []int{chPadLo, chPadMid, chPadHi, chBreath, chBass, chAir, chVinyl} {
-			w.p.Hit(at(last, r), ch, "...", nil, effect(0x0A, 0x01))
-		}
-	}
-
-	for _, ch := range []int{
-		chLead,
-		chBell,
-		chVox,
-		chBass,
-		chKick,
-		chSnare,
-		chHat,
-		chOpen,
-		chChopL,
-		chChopR,
-		chBreak,
-		chAir,
-		chBreath,
-		chVinyl,
-		chFX,
-	} {
-		w.p.Hit(rows/2-1, ch, "###", nil)
-	}
-
-	return w.p
 }
 
 // roll is a snare crescendo from row start up to, but not including, row end
@@ -674,42 +632,29 @@ func (w pattern) roll(b, start, end, fromVol, toVol int) {
 	}
 }
 
-// intro opens with pads and breath, then lets the break surface
-func intro(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	w.p.Hit(0, chVinyl, "C-4", k.vinyl, song.VolOpts(0x28)...)
-
-	for b := range rows / song.RowsPerBar {
-		c := barChord(verse, b)
-
-		w.pads(b, c, 0x1a)
-
-		if b%2 == 0 {
-			w.choir(b, c, 0x16)
-		}
-
-		if b >= 2 {
-			w.air(b, c.pad[2], 0x24)
-		}
-
-		if b >= 4 {
-			w.bellLine(b, c.arp, 2, 0x1e)
-		}
-	}
-
-	w.breakBeat(6, 0x18)
-	w.fx(7, 0, "C-4", k.riser, 0x30)
-	w.roll(7, 8, 16, 0x14, 0x30)
-
-	return w.p
-}
-
 // stutter speeds the rows up over the last beat, then restores the song speed
 func (w pattern) stutter(b int) {
 	w.p.Hit(at(b, 8), chFX, "...", nil, effect(0x0F, 4))
 	w.p.Hit(at(b, 12), chFX, "...", nil, effect(0x0F, 3))
 	w.p.Hit(at(b, 14), chFX, "...", nil, effect(0x0F, 6))
+}
+
+// voxPhrase plays the vocal phrase of a chord; slide notes glide into place
+func (w pattern) voxPhrase(b int, c chord, vol int) {
+	for _, e := range c.phrase {
+		if e.note == "###" {
+			w.p.Hit(at(b, e.row), chLead, "###", nil)
+			continue
+		}
+
+		opts := []song.Opt{song.Vol(vol + e.vol)}
+
+		if e.slide {
+			opts = append(opts, effect(0x03, 0x08))
+		}
+
+		w.p.Hit(at(b, e.row), chLead, e.note, w.k.lead, opts...)
+	}
 }
 
 // build brings the drums and a snare roll back
@@ -740,12 +685,102 @@ func build(s *song.Song, k *kit) *song.Pattern {
 		}
 
 		if b >= 6 {
+			w.voxPhrase(b, c, 0x28)
 			w.roll(b, 0, 16, 0x16, 0x38)
 		}
 	}
 
 	w.fx(7, 0, "C-5", k.riser, 0x44)
 	w.stutter(7)
+
+	return w.p
+}
+
+// intro opens with pads and breath, then lets the break surface
+func intro(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+
+	w.p.Hit(0, chVinyl, "C-4", k.vinyl, song.VolOpts(0x1c)...)
+
+	for b := range rows / song.RowsPerBar {
+		c := barChord(verse, b)
+
+		w.pads(b, c, 0x1a)
+
+		if b%2 == 0 {
+			w.choir(b, c, 0x16)
+		}
+
+		if b == 4 || b == 6 {
+			w.voxPhrase(b, c, 0x20)
+		}
+
+		if b >= 4 && b%2 == 1 {
+			w.bellAccent(b, c, 0x26, 14)
+		}
+	}
+
+	w.breakBeat(6, 0x18)
+	w.fx(7, 0, "C-4", k.riser, 0x30)
+	w.roll(7, 8, 16, 0x14, 0x30)
+
+	return w.p
+}
+
+// outro lets the last chord ring out under the vinyl
+func outro(s *song.Song, k *kit) *song.Pattern {
+	// the final C minor, held while the vinyl runs out
+	const last int = 3
+
+	w := pattern{s.Pattern(rows / 2), k}
+
+	for b := range 3 {
+		c := barChord(verse, b)
+
+		w.pads(b, c, 0x1e)
+		w.choir(b, c, 0x1a)
+
+		if b == 0 {
+			w.fx(b, 0, "C-4", k.crash, 0x40)
+			w.bass(b, c, 0, 0x2a)
+		}
+
+		if b == 2 {
+			w.voxPhrase(b, c, 0x24)
+			w.bellAccent(b, c, 0x26, 14)
+		}
+	}
+
+	w.pads(last, cm, 0x1a)
+	w.choir(last, cm, 0x16)
+	w.bass(last, cm, 0, 0x22)
+	w.bellAccent(last, cm, 0x28, 14)
+
+	// ease the sustained bass and vinyl away while the last chord releases
+	for r := 8; r < 15; r++ {
+		for _, ch := range []int{chBass, chVinyl} {
+			w.p.Hit(at(last, r), ch, "...", nil, effect(0x0A, 0x02))
+		}
+	}
+
+	for _, ch := range []int{
+		chLead,
+		chBell,
+		chVox,
+		chBass,
+		chKick,
+		chSnare,
+		chHat,
+		chOpen,
+		chChopL,
+		chChopR,
+		chBreak,
+		chBreath,
+		chVinyl,
+		chFX,
+	} {
+		w.p.Hit(rows/2-1, ch, "###", nil)
+	}
 
 	return w.p
 }
@@ -877,24 +912,6 @@ func (r *rng) next01() float64 {
 	return r.next()*0.5 + 0.5
 }
 
-// airSample is a loop of many high partials: filtered noise that still loops without a click
-func airSample(frames int, seed uint64) []float64 {
-	out := make([]float64, frames)
-	r := &rng{
-		state: seed,
-	}
-
-	for range 320 {
-		hz := 500 + r.next01()*3450
-		cycles := math.Max(1, math.Round(hz*float64(frames)/rate))
-		amp := (0.03 + 0.09*r.next01()) * (0.25 + math.Exp(-math.Pow((hz-2800)/1600, 2)))
-
-		addWave(out, cycles, amp, r.next01())
-	}
-
-	return normalise(out)
-}
-
 // padSample is a lush detuned pad, tuned to C-4
 func padSample(frames int, formant bool, seed uint64) []float64 {
 	out := make([]float64, frames)
@@ -1003,18 +1020,21 @@ func breakdown(s *song.Song, k *kit) *song.Pattern {
 
 		w.pads(b, c, 0x1a)
 		w.choir(b, c, 0x22)
-		w.air(b, c.pad[2], 0x34)
 
 		if b < 2 {
 			w.bass(b, c, 0, 0x26)
 		}
 
 		if b >= 2 {
-			w.bellLine(b, c.arp, 2, 0x2A)
+			w.voxPhrase(b, c, 0x30)
+
+			if b%2 == 0 {
+				w.bellAccent(b, c, 0x2e, 14)
+			}
 		}
 
 		if b >= 4 {
-			w.voxStab(b, 8, upOctave(c.pad[0]), 0x40, arpType(c))
+			w.voxStab(b, 8, upOctave(c.pad[0]), 0x30, arpType(c))
 		}
 	}
 
@@ -1040,22 +1060,27 @@ func (w pattern) dropA(lead, fillBar bool) {
 
 		w.pads(b, c, 0x24)
 		w.choir(b, c, 0x1e)
-
-		if b%2 == 1 {
-			w.air(b, c.pad[1], 0x2C)
-		}
-
 		w.bass(b, c, 1, 0x34)
 		w.breakBeat(b, 0x40)
+		w.hats(b, 4, 0x22, 0x2e)
+		w.p.Hit(at(b, 6), chOpen, "C-4", w.k.open, song.VolOpts(0x30, song.Pan(0x60))...)
+		w.p.Hit(at(b, 14), chOpen, "C-4", w.k.open, song.VolOpts(0x38, song.Pan(0xA0))...)
 
 		if b >= 4 {
 			w.chops(b, c.arp, 0x40, 0x60, 0x10, chChopL)
 			w.chops(b, reverseUp(c.arp), 0x3C, 0xA0, 0x14, chChopR)
-			w.bellLine(b, c.arp, 2, 0x1e)
+
+			row := 14
+
+			if b%2 == 1 {
+				row = 6
+			}
+
+			w.bellAccent(b, c, 0x2a, row)
 		}
 
 		if lead && b >= 4 {
-			w.leadLine(b, c.lead, 2, 0x26)
+			w.voxPhrase(b, c, 0x30)
 		}
 
 		if b%2 == 0 {
@@ -1083,12 +1108,19 @@ func (w pattern) dropB(lead, fillBar bool) {
 		w.drums(b, 2)
 		w.chops(b, c.arp, 0x44, 0x60, 0x18, chChopL)
 		w.chops(b, reverseUp(c.arp), 0x3E, 0xA0, 0x1C, chChopR)
-		w.bellLine(b, c.arp, 2, 0x26)
+
+		row := 14
+
+		if b%2 == 1 {
+			row = 6
+		}
+
+		w.bellAccent(b, c, 0x2c, row)
 
 		if lead {
-			w.leadLine(b, c.lead, 2, 0x2a)
+			w.voxPhrase(b, c, 0x30)
 		} else if b >= 4 {
-			w.leadLine(b, c.lead, 2, 0x22)
+			w.voxPhrase(b, c, 0x2a)
 		}
 
 		if b%2 == 1 {
@@ -1112,14 +1144,20 @@ func (w pattern) dropC(final bool) {
 
 		w.pads(b, c, 0x28)
 		w.choir(b, c, 0x22)
-		w.air(b, c.pad[1], 0x30)
 		w.bass(b, c, 2, 0x3c)
 		w.breakBeat(b, 0x2A)
 		w.drums(b, 3)
 		w.chops(b, c.arp, 0x48, 0x60, 0x20, chChopL)
 		w.chops(b, reverseUp(c.arp), 0x42, 0xA0, 0x24, chChopR)
-		w.bellLine(b, c.arp, 2, 0x2C)
-		w.leadLine(b, c.lead, 2, 0x2e)
+
+		row := 14
+
+		if b%2 == 1 {
+			row = 6
+		}
+
+		w.bellAccent(b, c, 0x32, row)
+		w.voxPhrase(b, c, 0x32)
 
 		if b%2 == 1 {
 			w.voxStab(b, 6, upOctave(c.pad[0]), 0x40, arpType(c))
@@ -1164,6 +1202,61 @@ func vinylSample(frames int, seed uint64) []float64 {
 	}
 
 	return normalise(out)
+}
+
+// voxLeadSample is a ghostly vowel that morphs from "oh" to "ah", tuned to C-4
+func voxLeadSample(sec float64, seed uint64) []float64 {
+	const harmonics = 15
+
+	// the note opens on "oh" and drifts towards "ah"
+	formantsA := [][3]float64{{400, 280, 1.0}, {800, 380, 0.65}, {2600, 900, 0.25}}
+	formantsB := [][3]float64{{700, 380, 1.0}, {1220, 520, 0.70}, {2600, 950, 0.35}}
+	n := int(sec * rate)
+	out := make([]float64, n)
+	phases := make([]float64, harmonics+1)
+	r := &rng{
+		state: seed,
+	}
+	weightsA := make([]float64, harmonics+1)
+	weightsB := make([]float64, harmonics+1)
+
+	for h := 1; h <= harmonics; h++ {
+		ga, gb := 0.06, 0.06
+		hz := base * float64(h)
+
+		for _, f := range formantsA {
+			ga += f[2] * math.Exp(-math.Pow((hz-f[0])/f[1], 2))
+		}
+
+		for _, f := range formantsB {
+			gb += f[2] * math.Exp(-math.Pow((hz-f[0])/f[1], 2))
+		}
+
+		weightsA[h] = ga / float64(h)
+		weightsB[h] = gb / float64(h)
+		phases[h] = r.next01()
+	}
+
+	var phase float64
+
+	for i := range out {
+		t := float64(i) / rate
+		mix := math.Min(t/(sec*0.7), 1)
+		vib := 1 + 0.007*math.Sin(2*math.Pi*4.8*t) + 0.003*math.Sin(2*math.Pi*0.9*t)
+		phase += base * vib / rate
+
+		var s float64
+
+		for h := 1; h <= harmonics; h++ {
+			w := weightsA[h]*(1-mix) + weightsB[h]*mix
+			s += w * math.Sin(2*math.Pi*float64(h)*phase+phases[h])
+		}
+
+		env := math.Min(t/0.06, 1) * math.Exp(-t*0.55)
+		out[i] = (s + r.next()*0.02) * env
+	}
+
+	return normalise(fadeOut(out, 500))
 }
 
 // voxSample is a breathy formant voice, tuned to C-4
@@ -1215,10 +1308,9 @@ func main() {
 
 	s.Timing(speed, tempo)
 
-	air := airSample(4096, 0xBEEF)
-	pad := brighten(padSample(4096, false, 0xA11CE), air, 0.45)
-	choir := brighten(choirSample(8192), air, 0.40)
-	lead := leadSample(2048)
+	pad := padSample(4096, false, 0xA11CE)
+	choir := choirSample(8192)
+	voxLead := voxLeadSample(1.6, 0xCAFE)
 	bell := bellSample(1.4)
 	vox := voxSample(1.0, [][3]float64{{700, 380, 1.25}, {1220, 520, 0.85}, {2600, 950, 0.45}}, 0xF00D)
 	bass := bassSample(4096)
@@ -1251,23 +1343,12 @@ func main() {
 			Envelope: song.Points(0, 0, 10, 64),
 			Fadeout: 2048,
 		}),
-		air: s.Instrument(song.Instrument{
-			Name: "breath air",
-			WAV: toWAV(air),
-			Loop: true,
-			Volume: 34,
-			Pan: 128,
-			Envelope: song.Points(0, 0, 16, 56),
-			Fadeout: 1024,
-		}),
 		lead: s.Instrument(song.Instrument{
-			Name: "reed lead",
-			WAV: toWAV(lead),
-			Loop: true,
+			Name: "ghost voice",
+			WAV: toWAV(voxLead),
 			Volume: 18,
 			Pan: 112,
-			Envelope: song.Points(0, 20, 4, 64, 20, 52),
-			Fadeout: 768,
+			Fadeout: 512,
 		}),
 		bell: s.Instrument(song.Instrument{
 			Name: "glass bell",
