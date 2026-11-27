@@ -65,22 +65,22 @@ const (
 
 var (
 	// music-box lead, tuned to C-4
-	leadRecipe = recipe.New(512).Triangle(recipe.Note(512, "C-4"), 0.16).Sine(recipe.Note(512, "C-5"), 0.07).Sine(recipe.Note(512, "C-3"), 0.05).String()
+	leadRecipe = recipe.New(512).Triangle(recipe.Note(512, "C-4"), 0.22).Sine(recipe.Note(512, "C-5"), 0.09).Sine(recipe.Note(512, "C-3"), 0.06).String()
 
 	// detuned glass pad: the second layer beats slowly against the first, so it needs OffCycle
-	padRecipe = recipe.New(1024).Triangle(recipe.Note(1024, "C-4"), 0.12).Triangle(recipe.Note(1024, "C-4")+1.5, 0.10).Sine(recipe.Note(1024, "C-3"), 0.07).String()
+	padRecipe = recipe.New(1024).Triangle(recipe.Note(1024, "C-4"), 0.17).Triangle(recipe.Note(1024, "C-4")+1.5, 0.14).Sine(recipe.Note(1024, "C-3"), 0.09).String()
 
 	// bowed sub bass, tuned to C-4
-	bassRecipe = recipe.New(256).Sine(recipe.Note(256, "C-4"), 0.20).Triangle(recipe.Note(256, "C-4"), 0.10).Sine(recipe.Note(256, "C-3"), 0.08).String()
+	bassRecipe = recipe.New(256).Sine(recipe.Note(256, "C-4"), 0.28).Triangle(recipe.Note(256, "C-4"), 0.14).Sine(recipe.Note(256, "C-3"), 0.10).String()
 
 	// felt kick: a 190 Hz sine heard at C-2 sounds near 48 Hz
-	kickRecipe = recipe.New(2000).Sine(190, 0.5).Sine(95, 0.15).Noise(800, 0.04).String()
+	kickRecipe = recipe.New(2000).Sine(190, 0.55).Sine(95, 0.18).Noise(800, 0.04).String()
 
 	// soft rim with a woody body
-	rimRecipe = recipe.New(1500).Noise(1800, 0.25).Triangle(320, 0.10).String()
+	rimRecipe = recipe.New(1500).Noise(1800, 0.30).Triangle(320, 0.13).String()
 
 	// short shaker
-	shakerRecipe = recipe.New(600).Noise(3500, 0.22).String()
+	shakerRecipe = recipe.New(600).Noise(3500, 0.28).String()
 
 	// vinyl crackle bed, looping under the whole song
 	vinylRecipe = recipe.New(8000).Noise(1, 0.5).Noise(3000, 0.12).String()
@@ -172,10 +172,10 @@ func (w pattern) drums(b, style int, pickup bool) {
 		return
 	}
 
-	w.p.Hit(at(b, 0), chKick, "C-2", w.k.kick, song.VolOpts(0x3C)...)
+	w.p.Hit(at(b, 0), chKick, "C-2", w.k.kick, song.VolOpts(0x44)...)
 
 	if pickup {
-		w.p.Hit(at(b, 10), chKick, "C-2", w.k.kick, song.VolOpts(0x30)...)
+		w.p.Hit(at(b, 10), chKick, "C-2", w.k.kick, song.VolOpts(0x36)...)
 	}
 
 	beats := []int{4, 8}
@@ -185,10 +185,10 @@ func (w pattern) drums(b, style int, pickup bool) {
 	}
 
 	for i, r := range beats {
-		vol := 0x1C
+		vol := 0x22
 
 		if r%4 == 0 {
-			vol = 0x24
+			vol = 0x2A
 		}
 
 		pan := 0x90
@@ -201,15 +201,15 @@ func (w pattern) drums(b, style int, pickup bool) {
 	}
 
 	if style == 1 {
-		w.p.Hit(at(b, 8), chRim, "C-4", w.k.rim, song.VolOpts(0x24, song.Pan(0x98))...)
+		w.p.Hit(at(b, 8), chRim, "C-4", w.k.rim, song.VolOpts(0x2C, song.Pan(0x98))...)
 
 		return
 	}
 
-	w.p.Hit(at(b, 8), chRim, "C-4", w.k.rim, song.VolOpts(0x30, song.Pan(0x98))...)
+	w.p.Hit(at(b, 8), chRim, "C-4", w.k.rim, song.VolOpts(0x38, song.Pan(0x98))...)
 
 	if b%2 == 1 {
-		w.p.Hit(at(b, 4), chRim, "C-4", w.k.rim, song.VolOpts(0x26, song.Pan(0x98))...)
+		w.p.Hit(at(b, 4), chRim, "C-4", w.k.rim, song.VolOpts(0x2E, song.Pan(0x98))...)
 	}
 }
 
@@ -270,7 +270,7 @@ func newSection(s *song.Song, k *kit, sec section) *song.Pattern {
 
 // vinyl starts the crackle bed, which loops until the outro lets it ring out alone
 func (w pattern) vinyl() {
-	w.p.Hit(0, chVinyl, "C-4", w.k.vinyl, song.VolOpts(0x16)...)
+	w.p.Hit(0, chVinyl, "C-4", w.k.vinyl, song.VolOpts(0x1A)...)
 }
 
 // intro opens with pads and vinyl alone
@@ -280,7 +280,7 @@ func intro(s *song.Song, k *kit) *song.Pattern {
 	w.vinyl()
 
 	for b, chord := range progression {
-		w.pads(b, chord, 0x1E)
+		w.pads(b, chord, 0x26)
 	}
 
 	return w.p
@@ -291,17 +291,17 @@ func outro(s *song.Song, k *kit) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
 
 	for b, chord := range progression[:3] {
-		w.pads(b, chord, 0x22)
-		w.bass(b, chord, 0x2C, false)
+		w.pads(b, chord, 0x2A)
+		w.bass(b, chord, 0x34, false)
 		w.drums(b, 1, false)
 	}
 
-	w.melody(outroPhrase, 0x30)
+	w.melody(outroPhrase, 0x38)
 
 	// the last chord, held while the lead resolves
 	last := progression[3]
-	w.pads(3, last, 0x20)
-	w.bass(3, last, 0x2C, false)
+	w.pads(3, last, 0x28)
+	w.bass(3, last, 0x34, false)
 
 	for _, ch := range []int{chLead, chPad0, chPad1, chPad2, chBass, chKick, chRim, chShake} {
 		w.p.Hit(at(4, 0), ch, "###", nil)
@@ -375,37 +375,37 @@ func main() {
 	}
 	introP := intro(s, k)
 	verseAP := newSection(s, k, section{
-		padVol: 0x24,
-		bassVol: 0x30,
+		padVol: 0x2C,
+		bassVol: 0x38,
 		drumStyle: 1,
 	})
 	verseBP := newSection(s, k, section{
-		padVol: 0x26,
-		bassVol: 0x32,
+		padVol: 0x2E,
+		bassVol: 0x3A,
 		drumStyle: 1,
-		leadVol: 0x36,
+		leadVol: 0x40,
 		phrase: verse,
 	})
 	chorusP := newSection(s, k, section{
-		padVol: 0x2C,
-		bassVol: 0x38,
+		padVol: 0x34,
+		bassVol: 0x40,
 		drumStyle: 2,
-		leadVol: 0x40,
+		leadVol: 0x48,
 		phrase: chorus,
 		fill: true,
 	})
 	breakP := newSection(s, k, section{
-		padVol: 0x22,
-		bassVol: 0x2C,
+		padVol: 0x2A,
+		bassVol: 0x34,
 		drumStyle: 1,
-		leadVol: 0x30,
+		leadVol: 0x38,
 		phrase: breakPhrase,
 	})
 	verseCP := newSection(s, k, section{
-		padVol: 0x26,
-		bassVol: 0x32,
+		padVol: 0x2E,
+		bassVol: 0x3A,
 		drumStyle: 1,
-		leadVol: 0x32,
+		leadVol: 0x3C,
 		phrase: chorus,
 	})
 	outroP := outro(s, k)
