@@ -44,3 +44,10 @@ To listen to a recipe, render it to a WAV outside the song folder:
 A song can be written as a Go program instead of `song.txt`. Use the `song` package (`song/`) and put the program in the song folder as `song.go`, with `package main`. See `tracks/track3-go/song.go` for a full example.
 
 Build it with `go run ./cmd/tracker build tracks/my-song`, which runs the program. The program writes its own `song.xm`, so `-o` doesn't apply. Don't write a generator script outside the repo to produce `song.txt`.
+
+## Samples and mixing
+
+- A volume-column value (`song.Vol`) replaces the sample's own volume for that note. The instrument's `Volume` is only the default when the cell has no volume column, so raising it alone changes nothing on notes that set a volume.
+- A looping sample must hold a whole number of cycles of every layer, or it clicks at the loop point. Use frequencies that are multiples of `recipe.Rate` / frames, e.g. 261.34375, 522.6875 and 784.03125 for a 256-frame sample.
+- Two copies of a wave with `Phase(0.5)` cancel all odd harmonics, the fundamental included: a saw pad made that way sounds an octave up and hollow. Use harmonic multiples for thickness instead, or a small phase offset when a little beating is wanted.
+- The kick is tuned by note: a 200 Hz sine played at `C-2` sounds at 50 Hz. Don't write the wanted frequency into the recipe if the note is transposed.
