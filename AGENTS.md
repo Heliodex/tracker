@@ -45,6 +45,8 @@ A song can be written as a Go program instead of `song.txt`. Use the `song` pack
 
 Build it with `go run ./cmd/tracker build tracks/my-song`, which runs the program. The program writes its own `song.xm`, so `-o` doesn't apply. Don't write a generator script outside the repo to produce `song.txt`.
 
+A `song.go` can also synthesise its samples in memory and pass WAV bytes to `song.Instrument`, so the folder needs no sample files at all. Keep looping samples to whole cycles, as for a recipe: see `tracks/track15/song.go`.
+
 ## Samples and mixing
 
 - A volume-column value (`song.Vol`) replaces the sample's own volume for that note. The instrument's `Volume` is only the default when the cell has no volume column, so raising it alone changes nothing on notes that set a volume.
