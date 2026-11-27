@@ -289,9 +289,9 @@ func airSample(frames int, seed uint64) []float64 {
 	r := &rng{state: seed}
 
 	for range 260 {
-		hz := 700 + r.next01()*3300
+		hz := 600 + r.next01()*2900
 		cycles := math.Max(1, math.Round(hz*float64(frames)/rate))
-		amp := (0.02 + 0.08*r.next01()) * (0.3 + math.Exp(-math.Pow((hz-2600)/1700, 2)))
+		amp := (0.02 + 0.07*r.next01()) * (0.3 + math.Exp(-math.Pow((hz-2200)/1400, 2)))
 
 		addWave(out, cycles, amp, r.next01())
 	}
@@ -1135,8 +1135,8 @@ func main() {
 	s.Timing(speed, tempo)
 
 	air := airSample(4096, 0xBEEF)
-	pad := brighten(padSample(4096, 0xA11CE, false), air, 0.42)
-	voicePad := brighten(padSample(8192, 0xC401, true), air, 0.36)
+	pad := brighten(padSample(4096, 0xA11CE, false), air, 0.30)
+	voicePad := brighten(padSample(8192, 0xC401, true), air, 0.28)
 	bass := bassSample(2048)
 	kick := kickSample(0x1001)
 	snare := snareSample(0x2002)
@@ -1163,7 +1163,7 @@ func main() {
 		}),
 		air: s.Instrument(song.Instrument{
 			Name: "night air", WAV: toWAV(air), Loop: true,
-			Volume: 30, Pan: 128, Envelope: song.Points(0, 0, 16, 56), Fadeout: 1024,
+			Volume: 24, Pan: 128, Envelope: song.Points(0, 0, 16, 56), Fadeout: 1024,
 		}),
 		lead: s.Instrument(song.Instrument{
 			Name: "golden voice", WAV: toWAV(lead),
