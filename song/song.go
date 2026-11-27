@@ -25,6 +25,7 @@ import (
 	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/save"
 	"github.com/Heliodex/tracker/types"
+	"github.com/Heliodex/tracker/wav"
 )
 
 type (
@@ -39,6 +40,9 @@ type (
 		Name string
 		// Recipe is the sample, as recipe text (see package recipe)
 		Recipe string
+		// WAV is the sample as a WAV file, mono 8-bit or 16-bit PCM, for a sample that a recipe cannot describe.
+		// Set either Recipe or WAV, not both. A WAV is not checked for loop cycles, as a recipe is
+		WAV []byte
 		// Loop repeats the whole sample. Without it, the sample plays once
 		Loop bool
 		// OffCycle allows a looping sample to have layers that are not whole cycles, such as a detuned unison that beats.
@@ -53,7 +57,10 @@ type (
 		Envelope []Point
 		// Fadeout is how fast the volume falls after a note off, from 0 to 65535. Zero means 256
 		Fadeout, id int
-		recipe *recipe.Recipe
+		// pcm is the sample data in XM form, rendered from the recipe or read from the WAV
+		pcm []uint8
+		sixteen bool
+		frames int
 		song *Song
 	}
 
@@ -122,18 +129,39 @@ func (s *Song) Instrument(ins Instrument) *Instrument {
 		s.fail("instrument %q: fadeout must be between 0 and 65535, got %d", in.Name, in.Fadeout)
 	}
 
-	rc, err := recipe.Parse(strings.NewReader(in.Recipe))
-	if err != nil {
-		s.fail("instrument %q: %v", in.Name, err)
-	}
+	switch {
+	case in.Recipe != "" && in.WAV != nil:
+		s.fail("instrument %q: set Recipe or WAV, not both", in.Name)
 
-	if in.Loop && !in.OffCycle {
-		if err := rc.Loopable(); err != nil {
-			s.fail("instrument %q: %v (set OffCycle if the beating is intended)", in.Name, err)
+	case in.WAV != nil:
+		pcm, sixteen, err := wav.Decode(in.WAV)
+		if err != nil {
+			s.fail("instrument %q: %v", in.Name, err)
+			break
 		}
+
+		in.pcm, in.sixteen = pcm, sixteen
+		in.frames = len(pcm)
+		if sixteen {
+			in.frames /= 2
+		}
+
+	default:
+		rc, err := recipe.Parse(strings.NewReader(in.Recipe))
+		if err != nil {
+			s.fail("instrument %q: %v", in.Name, err)
+			break
+		}
+
+		if in.Loop && !in.OffCycle {
+			if err := rc.Loopable(); err != nil {
+				s.fail("instrument %q: %v (set OffCycle if the beating is intended)", in.Name, err)
+			}
+		}
+
+		in.pcm, in.sixteen, in.frames = rc.Render(), rc.Sixteen, rc.Frames
 	}
 
-	in.recipe = rc
 	s.instruments = append(s.instruments, &in)
 
 	return &in
@@ -141,9 +169,8 @@ func (s *Song) Instrument(ins Instrument) *Instrument {
 
 // toText converts the instrument to the form the text format and XM writer use
 func (ins *Instrument) toText() (loadtext.Instrument, error) {
-	rc := ins.recipe
-	if rc == nil {
-		return loadtext.Instrument{}, fmt.Errorf("instrument %q has no recipe", ins.Name)
+	if ins.pcm == nil {
+		return loadtext.Instrument{}, fmt.Errorf("instrument %q has no sample", ins.Name)
 	}
 
 	volume, pan, fadeout := ins.Volume, ins.Pan, ins.Fadeout
@@ -195,14 +222,14 @@ func (ins *Instrument) toText() (loadtext.Instrument, error) {
 	sample := loadtext.Sample{
 		Volume: uint8(volume),
 		Panning: uint8(pan),
-		Data: rc.Render(),
-		Sixteen: rc.Sixteen,
+		Data: ins.pcm,
+		Sixteen: ins.sixteen,
 	}
 
 	copy(sample.Name[:], ins.Name)
 
 	// the loop length is the whole sample, even for a one-shot, where the loop mode ignores it
-	sample.LoopLength = uint32(rc.Frames)
+	sample.LoopLength = uint32(ins.frames)
 
 	if ins.Loop {
 		sample.LoopMode = 1

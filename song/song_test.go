@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Heliodex/tracker/load"
+	"github.com/Heliodex/tracker/wav"
 )
 
 const squareRecipe = "Frames: 256\nLayer: square 261.34375 0.5\n"
@@ -291,5 +292,51 @@ func TestWriteLoadsBack(t *testing.T) {
 	// the recipe is 8-bit, so loop lengths are in bytes, one per frame
 	if s := f.Instruments[0].Samples[0]; s.LoopLength != 256 || s.Flags&0x03 != 1 {
 		t.Errorf("got flags %#x, loop length %d, want forward loop of length 256", s.Flags, s.LoopLength)
+	}
+}
+
+func TestWAVSampleIsUsed(t *testing.T) {
+	// two 16-bit frames, 0x4000 and -0x4000 in little-endian signed form
+	pcm := []uint8{0x00, 0x40, 0x00, 0xC0}
+
+	file, err := wav.Encode(pcm, true)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+
+	s := New("x", 1)
+	ins := s.Instrument(Instrument{
+		Name: "a",
+		WAV: file,
+		Loop: true,
+	})
+	p := s.Pattern(2)
+
+	p.Hit(0, 0, "C-4", ins)
+	s.Play(p)
+
+	f, err := s.Build()
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	smp := f.Instruments[0].Samples[0]
+	// the loop length is in bytes, which is 4 for two 16-bit frames
+	if !reflect.DeepEqual(smp.SampleData, pcm) || smp.LoopLength != 4 || smp.Flags&0x03 != 1 {
+		t.Errorf("got data %v, loop length %d, flags %d; want %v, a loop of 4 bytes, looping", smp.SampleData, smp.LoopLength, smp.Flags, pcm)
+	}
+}
+
+func TestRecipeAndWAVTogetherAreReported(t *testing.T) {
+	s := New("x", 1)
+
+	s.Instrument(Instrument{
+		Name: "a",
+		Recipe: squareRecipe,
+		WAV: []byte("RIFF"),
+	})
+
+	if _, err := s.Build(); err == nil {
+		t.Error("expected an error for both a recipe and a WAV")
 	}
 }
