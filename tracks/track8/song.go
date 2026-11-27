@@ -31,7 +31,7 @@ type (
 
 	// kit holds the instruments, numbered as they are added to the song
 	kit struct {
-		lead, bass, pad, arp, kick, snare, hat, crash *song.Instrument
+		lead, bass, pad, arp, kick, snare, hat, openHat, crash *song.Instrument
 	}
 
 	// pattern wraps a song pattern with the instruments to play it with
@@ -96,6 +96,9 @@ var (
 
 	hatRecipe = recipe.New(500).Sixteen().
 		Noise(4000, 0.4).Square(4000, 0.03).String()
+
+	openHatRecipe = recipe.New(1800).Sixteen().
+		Noise(3500, 0.34).Square(3500, 0.03).String()
 
 	crashRecipe = recipe.New(8000).Sixteen().
 		Noise(1500, 0.45).Noise(4000, 0.2).String()
@@ -223,11 +226,19 @@ func (w pattern) drums(b, style int) {
 		w.p.Hit(at(b, 4), chSnare, "C-4", w.k.snare, withVol(0x48)...)
 		w.p.Hit(at(b, 12), chSnare, "C-4", w.k.snare, withVol(0x48)...)
 	}
+	if style == 2 {
+		for _, r := range []int{2, 6, 10, 14} {
+			w.p.Hit(at(b, r), chHat, "C-5", w.k.openHat, withVol(0x28, song.Pan(0xC0))...)
+		}
+	}
 	step := 4
 	if style >= 2 {
 		step = 2
 	}
 	for i, r := 0, 0; r < song.RowsPerBar; i, r = i+1, r+step {
+		if style == 2 && (r == 2 || r == 6 || r == 10 || r == 14) {
+			continue
+		}
 		vol := 0x24
 		if r%4 == 0 {
 			vol = 0x30
@@ -335,20 +346,31 @@ func build(s *song.Song, k *kit) *song.Pattern {
 	return w.p
 }
 
-func chorus(s *song.Song, k *kit, answer bool) *song.Pattern {
+func chorus(s *song.Song, k *kit, answer, final bool) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
 	phrase := hookA
 	if answer {
 		phrase = hookB
 	}
-	w.arrange(section{
+	sec := section{
 		padVol: 0x2C, arpStep: 1, arpVol: 0x30,
 		bassStep: 2, bassVol: 0x3C, drumStyle: 2, leadVol: 0x48, phrase: phrase, fill: true,
-	}, progression)
+	}
+	if final {
+		sec.padVol = 0x30
+		sec.arpVol = 0x34
+		sec.bassVol = 0x40
+		sec.leadVol = 0x4C
+	}
+	w.arrange(sec, progression)
 	w.crash(0, 0x38)
 	if !answer {
 		w.crash(2, 0x28)
 	}
+	if final {
+		w.crash(2, 0x30)
+	}
+	w.p.Hit(at(2, 14), chKick, "C-2", k.kick, withVol(0x30)...)
 	return w.p
 }
 
@@ -434,6 +456,11 @@ func main() {
 			Volume: 30, Pan: 128,
 			Envelope: []song.Point{{X: 0, Y: 64}, {X: 3, Y: 0}},
 		}),
+		openHat: s.Instrument(song.Instrument{
+			Name: "open hat", Recipe: openHatRecipe,
+			Volume: 26, Pan: 192,
+			Envelope: []song.Point{{X: 0, Y: 64}, {X: 14, Y: 0}},
+		}),
 		crash: s.Instrument(song.Instrument{
 			Name: "crash", Recipe: crashRecipe,
 			Volume: 28, Pan: 128,
@@ -444,12 +471,13 @@ func main() {
 	introP := intro(s, k)
 	verseP := verse(s, k)
 	buildP := build(s, k)
-	chorusP := chorus(s, k, false)
-	answerP := chorus(s, k, true)
+	chorusP := chorus(s, k, false, false)
+	answerP := chorus(s, k, true, false)
+	finalP := chorus(s, k, false, true)
 	breakP := breakdown(s, k)
 	outroP := outro(s, k)
 
-	s.Play(introP, verseP, buildP, chorusP, answerP, breakP, buildP, chorusP, answerP, chorusP, outroP)
+	s.Play(introP, verseP, buildP, chorusP, answerP, breakP, buildP, chorusP, answerP, finalP, outroP)
 
 	_, src, _, _ := runtime.Caller(0)
 	if err := s.Write(filepath.Join(filepath.Dir(src), "song.xm")); err != nil {
