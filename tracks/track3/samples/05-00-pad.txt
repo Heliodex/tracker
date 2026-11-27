@@ -1,5 +1,0 @@
-# soft pad, tuned to C-4
-Frames: 512
-Bits: 16
-Layer: triangle 261.34375 0.35
-Layer: sine 130.671875 0.25

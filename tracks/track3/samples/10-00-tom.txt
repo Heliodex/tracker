@@ -1,5 +1,0 @@
-# tom, a low sine with a short decay
-Frames: 1200
-Bits: 16
-Layer: sine 110 1
-Layer: sine 165 0.3

@@ -1,5 +1,0 @@
-# long bright noise crash
-Frames: 8000
-Bits: 16
-Layer: noise 1000 1
-Layer: noise 3000 0.4

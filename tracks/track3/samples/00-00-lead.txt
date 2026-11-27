@@ -1,5 +1,0 @@
-# thin square lead, tuned to C-4 (261.34 Hz)
-Frames: 256
-Bits: 16
-Layer: square 261.34375 0.45 duty=0.25
-Layer: sine 522.6875 0.2
