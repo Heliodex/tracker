@@ -1,9 +1,9 @@
-// Command track12 writes "track12", an original song in A minor, as an XM module, song.xm, in this folder.
+// Command track12 writes "track12", an original song in B minor, as an XM module, song.xm, in this folder.
 //
 // Run it from anywhere inside the repository with go run ./tracks/track12, or with tracker build.
 //
-// The piece is four-on-the-floor synth-pop in A minor at 110 BPM: an intro, two verses, a chorus,
-// a verse, a chorus, a bridge, a big chorus, a chorus, and a short outro resolving back to A minor.
+// The piece is a syncopated synth-pop track in B minor at 124 BPM: an intro, two verses, a chorus,
+// a verse, a chorus, a bridge, a big chorus, a chorus, and a short outro resolving back to B minor.
 package main
 
 // track12 – Seaglass Alpha
@@ -19,7 +19,7 @@ import (
 type (
 	// chordBar is one bar of the progression
 	chordBar struct {
-		chord string // chord name for song.Triad, such as "Am" or "F"
+		chord string // chord name for song.Triad, such as "Bm" or "F#"
 		oct int // octave of the triad root for the pad
 		bass string // bass note for the whole bar
 		lead []string // four lead notes on rows 0, 4, 8, 12
@@ -54,49 +54,93 @@ const rows = 64
 var (
 	// instrument recipes, all tuned to C-4 so note names pick the pitch
 
-	// thin square lead with a sine octave on top
-	leadRecipe = recipe.New(256).Square(recipe.Note(256, "C-4"), 0.45).Duty(0.25).Sine(recipe.Note(256, "C-5"), 0.2).String()
+	// triangle lead with a soft sine octave, rounder than a square
+	leadRecipe = recipe.New(256).Triangle(recipe.Note(256, "C-4"), 0.35).Sine(recipe.Note(256, "C-5"), 0.1).Sine(recipe.Note(256, "G-5"), 0.04).String()
 
-	// saw bass with a sine sub an octave down
-	bassRecipe = recipe.New(256).Saw(recipe.Note(256, "C-4"), 0.45).Sine(recipe.Note(256, "C-3"), 0.35).String()
+	// square bass with a triangle body an octave down
+	bassRecipe = recipe.New(256).Square(recipe.Note(256, "C-4"), 0.2).Duty(0.5).Triangle(recipe.Note(256, "C-3"), 0.4).String()
 
-	// kick: a 200 Hz sine played at C-2 sounds at 50 Hz
-	kickRecipe = recipe.New(2000).Sine(200, 1).Sine(400, 0.25).String()
+	// kick: a 220 Hz sine played at C-2 sounds at 55 Hz, with a triangle click on top
+	kickRecipe = recipe.New(2000).Sine(220, 1).Triangle(440, 0.1).Noise(2500, 0.05).String()
 
-	// snare: noise with a little triangle body
-	snareRecipe = recipe.New(3000).Noise(1000, 1).Triangle(185, 0.25).String()
+	// snare: bright noise with a sine body
+	snareRecipe = recipe.New(3000).Noise(1800, 0.8).Noise(4000, 0.35).Sine(240, 0.2).String()
 
-	// short closed hat
-	hatRecipe = recipe.New(800).Noise(2000, 1).String()
+	// short, bright hat
+	hatRecipe = recipe.New(600).Noise(4000, 0.7).String()
 
-	// long bright noise crash
-	crashRecipe = recipe.New(8000).Noise(1000, 1).Noise(3000, 0.4).String()
+	// long noise crash, darker than a hat
+	crashRecipe = recipe.New(9000).Noise(4000, 0.5).Noise(1500, 0.3).String()
 
-	// soft pad, slow attack
-	padRecipe = recipe.New(512).Triangle(recipe.Note(512, "C-4"), 0.35).Sine(recipe.Note(512, "C-3"), 0.25).String()
+	// sine pad with a faint saw under it
+	padRecipe = recipe.New(512).Sine(recipe.Note(512, "C-4"), 0.3).Triangle(recipe.Note(512, "C-5"), 0.06).Saw(recipe.Note(512, "C-3"), 0.05).String()
 
-	// bell-like pluck for the arpeggio
-	bellRecipe = recipe.New(2048).Sine(261.34375, 0.5).Sine(783, 0.18).Sine(1306.7, 0.08).String()
+	// plucked triangle bell for the arpeggio
+	bellRecipe = recipe.New(1024).Triangle(recipe.Note(1024, "C-4"), 0.4).Sine(recipe.Note(1024, "C-5"), 0.06).String()
 
-	// bridge progression: Dm Am F G
+	// bridge progression: Em A G F#
 	bridgeChords = []chordBar{
 		{
-			chord: "Dm",
+			chord: "Em",
 			oct: 3,
-			bass: "D-2",
-			lead: []string{"D-4", "F-4", "A-4", "F-4"},
+			bass: "E-2",
+			lead: []string{"B-4", "E-5", "G-5", "E-5"},
 		},
 		{
-			chord: "Am",
+			chord: "A",
 			oct: 3,
 			bass: "A-2",
-			lead: []string{"A-4", "C-5", "E-5", "C-5"},
+			lead: []string{"A-4", "C#5", "E-5", "A-5"},
 		},
 		{
-			chord: "F",
+			chord: "G",
 			oct: 3,
-			bass: "F-2",
-			lead: []string{"F-4", "A-4", "C-5", "A-4"},
+			bass: "G-2",
+			lead: []string{"B-4", "D-5", "G-5", "D-5"},
+		},
+		{
+			chord: "F#",
+			oct: 3,
+			bass: "F#2",
+			lead: []string{"C#5", "A#4", "F#4", "A#4"},
+		},
+	}
+
+	// chorus progression: G D Em A
+	chorusChords = []chordBar{
+		{
+			chord: "G",
+			oct: 3,
+			bass: "G-2",
+			lead: []string{"D-5", "G-5", "B-5", "G-5"},
+		},
+		{
+			chord: "D",
+			oct: 3,
+			bass: "D-2",
+			lead: []string{"F#5", "D-5", "A-4", "D-5"},
+		},
+		{
+			chord: "Em",
+			oct: 3,
+			bass: "E-2",
+			lead: []string{"E-5", "G-5", "B-5", "G-5"},
+		},
+		{
+			chord: "A",
+			oct: 3,
+			bass: "A-2",
+			lead: []string{"C#5", "E-5", "A-5", "E-5"},
+		},
+	}
+
+	// verse progression: Bm G D A
+	verse = []chordBar{
+		{
+			chord: "Bm",
+			oct: 3,
+			bass: "B-2",
+			lead: []string{"B-4", "D-5", "F#5", "D-5"},
 		},
 		{
 			chord: "G",
@@ -104,21 +148,27 @@ var (
 			bass: "G-2",
 			lead: []string{"G-4", "B-4", "D-5", "B-4"},
 		},
-	}
-
-	// chorus progression: F C G Am
-	chorusChords = []chordBar{
 		{
-			chord: "F",
+			chord: "D",
 			oct: 3,
-			bass: "F-2",
-			lead: []string{"F-4", "A-4", "C-5", "F-5"},
+			bass: "D-2",
+			lead: []string{"F#4", "A-4", "D-5", "A-4"},
 		},
 		{
-			chord: "C",
+			chord: "A",
 			oct: 3,
-			bass: "C-2",
-			lead: []string{"E-5", "C-5", "G-4", "C-5"},
+			bass: "A-2",
+			lead: []string{"A-4", "C#5", "E-5", "C#5"},
+		},
+	}
+
+	// verseB progression, same chords with a different lead
+	verseB = []chordBar{
+		{
+			chord: "Bm",
+			oct: 3,
+			bass: "B-2",
+			lead: []string{"F#5", "D-5", "B-4", "D-5"},
 		},
 		{
 			chord: "G",
@@ -127,66 +177,16 @@ var (
 			lead: []string{"D-5", "B-4", "G-4", "B-4"},
 		},
 		{
-			chord: "Am",
+			chord: "D",
+			oct: 3,
+			bass: "D-2",
+			lead: []string{"A-4", "F#4", "D-4", "F#4"},
+		},
+		{
+			chord: "A",
 			oct: 3,
 			bass: "A-2",
-			lead: []string{"C-5", "A-4", "E-4", "A-4"},
-		},
-	}
-
-	// verse progression: Am F C G
-	verse = []chordBar{
-		{
-			chord: "Am",
-			oct: 3,
-			bass: "A-2",
-			lead: []string{"A-4", "C-5", "E-5", "C-5"},
-		},
-		{
-			chord: "F",
-			oct: 3,
-			bass: "F-2",
-			lead: []string{"F-4", "A-4", "C-5", "A-4"},
-		},
-		{
-			chord: "C",
-			oct: 3,
-			bass: "C-2",
-			lead: []string{"G-4", "C-5", "E-5", "C-5"},
-		},
-		{
-			chord: "G",
-			oct: 3,
-			bass: "G-2",
-			lead: []string{"D-4", "G-4", "B-4", "G-4"},
-		},
-	}
-
-	// verseB progression, same chords with a different lead
-	verseB = []chordBar{
-		{
-			chord: "Am",
-			oct: 3,
-			bass: "A-2",
-			lead: []string{"E-4", "C-5", "A-4", "E-5"},
-		},
-		{
-			chord: "F",
-			oct: 3,
-			bass: "F-2",
-			lead: []string{"C-5", "A-4", "F-4", "A-4"},
-		},
-		{
-			chord: "C",
-			oct: 3,
-			bass: "C-2",
-			lead: []string{"E-5", "C-5", "G-4", "C-5"},
-		},
-		{
-			chord: "G",
-			oct: 3,
-			bass: "G-2",
-			lead: []string{"B-4", "G-4", "D-4", "G-4"},
+			lead: []string{"E-5", "C#5", "A-4", "C#5"},
 		},
 	}
 )
@@ -201,10 +201,11 @@ func (w pattern) crash(b, vol int) {
 	w.p.Hit(song.At(b, 0), chHat, "C-4", w.k.crash, song.VolOpts(vol)...)
 }
 
-// drums plays kick on 1 and 3, snare on 2 and 4; fill adds a snare roll at the bar's end
+// drums plays a syncopated kick on rows 0, 7 and 10, snare on 4 and 12; fill adds a snare roll at the bar's end
 func (w pattern) drums(b int, fill bool) {
 	w.p.Hit(song.At(b, 0), chDrum, "C-2", w.k.kick)
-	w.p.Hit(song.At(b, 8), chDrum, "C-2", w.k.kick)
+	w.p.Hit(song.At(b, 7), chDrum, "C-2", w.k.kick)
+	w.p.Hit(song.At(b, 10), chDrum, "C-2", w.k.kick)
 	w.p.Hit(song.At(b, 4), chDrum, "C-4", w.k.snare)
 	w.p.Hit(song.At(b, 12), chDrum, "C-4", w.k.snare)
 
@@ -215,9 +216,9 @@ func (w pattern) drums(b int, fill bool) {
 	}
 }
 
-// hats plays closed hats every step rows through the bar
-func (w pattern) hats(b, step, vol int) {
-	for _, r := range song.Steps(0, song.RowsPerBar, step) {
+// hats plays closed hats from row start every step rows through the bar, so start 2 puts them on the offbeats
+func (w pattern) hats(b, start, step, vol int) {
+	for _, r := range song.Steps(start, song.RowsPerBar, step) {
 		w.p.Hit(song.At(b, r), chHat, "C-5", w.k.hat, song.VolOpts(vol)...)
 	}
 }
@@ -258,11 +259,12 @@ func shift(note string, semis int) string {
 	return types.Note(v).String()
 }
 
-// arp8 returns eight eighth-note arpeggio steps from a triad: up, then a peak, then back down
+// arp8 returns eight eighth-note arpeggio steps from a triad: the root, then a dip and a leap up an octave,
+// falling back through the top of the chord
 func arp8(tri []string) []string {
 	up := shift(tri[0], 12)
 
-	return []string{tri[0], tri[1], tri[2], up, up, tri[2], tri[1], tri[0]}
+	return []string{tri[0], tri[2], tri[1], tri[2], up, tri[2], up, tri[1]}
 }
 
 // arp plays the bar's arpeggio, one note every step rows
@@ -281,7 +283,7 @@ func bridge(s *song.Song, k *kit) *song.Pattern {
 		w.bass(b, cb.bass)
 		w.arp(b, cb, 2, 0x24)
 		w.lead(b, cb.lead, 0x40)
-		w.hats(b, 4, 0x20)
+		w.hats(b, 2, 4, 0x20)
 		w.p.Hit(song.At(b, 4), chDrum, "C-4", k.snare, song.VolOpts(0x28)...)
 		w.p.Hit(song.At(b, 12), chDrum, "C-4", k.snare, song.VolOpts(0x28)...)
 	}
@@ -317,7 +319,7 @@ func chorus(s *song.Song, k *kit, big bool) *song.Pattern {
 		w.bass(b, cb.bass)
 		w.arp(b, cb, 2, arpVol)
 		w.lead(b, cb.lead, leadVol)
-		w.hats(b, hatStep, 0x30)
+		w.hats(b, 2, hatStep, 0x30)
 		w.drums(b, big && b == len(chorusChords)-1)
 
 		if b == 0 || b == 2 {
@@ -343,7 +345,7 @@ func intro(s *song.Song, k *kit) *song.Pattern {
 		}
 
 		if b >= 1 {
-			w.hats(b, 4, 0x28)
+			w.hats(b, 2, 4, 0x28)
 		}
 
 		if b >= 2 {
@@ -360,27 +362,27 @@ func intro(s *song.Song, k *kit) *song.Pattern {
 	return w.p
 }
 
-// outro: four bars resolving back to A minor, ending on a single note with a crash
+// outro: three bars resolving back to B minor, ending on a single note with a crash
 func outro(s *song.Song, k *kit) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
 	bars := []chordBar{
 		{
-			chord: "Am",
+			chord: "Bm",
 			oct: 3,
-			bass: "A-2",
-			lead: []string{"A-4", "C-5", "E-5", "C-5"},
+			bass: "B-2",
+			lead: []string{"B-4", "D-5", "F#5", "D-5"},
 		},
 		{
-			chord: "F",
+			chord: "A",
 			oct: 3,
-			bass: "F-2",
-			lead: []string{"F-4", "A-4", "C-5", "A-4"},
+			bass: "A-2",
+			lead: []string{"A-4", "C#5", "E-5", "C#5"},
 		},
 		{
 			chord: "G",
 			oct: 3,
 			bass: "G-2",
-			lead: []string{"D-4", "G-4", "B-4", "G-4"},
+			lead: []string{"G-4", "B-4", "D-5", "B-4"},
 		},
 	}
 
@@ -389,20 +391,20 @@ func outro(s *song.Song, k *kit) *song.Pattern {
 		w.bass(b, cb.bass)
 		w.arp(b, cb, 2, 0x24)
 		w.lead(b, cb.lead, 0x40)
-		w.hats(b, 4, 0x24)
+		w.hats(b, 2, 4, 0x24)
 		w.drums(b, false)
 	}
 
-	// final A minor chord, no drums, note-offs to let it ring out
-	am := chordBar{
-		chord: "Am",
+	// final B minor chord, no drums, note-offs to let it ring out
+	bm := chordBar{
+		chord: "Bm",
 		oct: 3,
-		bass: "A-2",
+		bass: "B-2",
 	}
 
-	w.pad(3, am, 0x28)
-	w.bass(3, am.bass)
-	w.p.Hit(song.At(3, 0), chLead, "A-4", k.lead, song.Vol(0x50))
+	w.pad(3, bm, 0x28)
+	w.bass(3, bm.bass)
+	w.p.Hit(song.At(3, 0), chLead, "B-4", k.lead, song.Vol(0x50))
 	w.p.Hit(song.At(3, 0), chDrum, "C-2", k.kick)
 	w.crash(3, 0x48)
 
@@ -422,7 +424,7 @@ func versePattern(s *song.Song, k *kit, bars []chordBar, arpStep, leadVol int, f
 		w.bass(b, cb.bass)
 		w.arp(b, cb, arpStep, 0x28)
 		w.lead(b, cb.lead, leadVol)
-		w.hats(b, 4, 0x28)
+		w.hats(b, 2, 4, 0x28)
 		w.drums(b, fill && b == len(bars)-1)
 
 		if b == 0 {
@@ -438,7 +440,7 @@ func versePattern(s *song.Song, k *kit, bars []chordBar, arpStep, leadVol int, f
 func main() {
 	s := song.New("track12", 8)
 
-	s.Timing(6, 110)
+	s.Timing(6, 124)
 
 	k := &kit{
 		lead: s.Instrument(song.Instrument{
