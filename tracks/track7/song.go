@@ -75,37 +75,37 @@ const (
 
 var (
 	// A wide saw lead, tuned to C-4
-	leadRecipe = recipe.New(256).Sixteen().Saw(261.34375, 0.23).Saw(262.4, 0.23).Phase(0.5).Square(130.671875, 0.07).Duty(0.25).Sine(522.6875, 0.04).String()
+	leadRecipe = recipe.New(256).Saw(261.34375, 0.23).Saw(262.4, 0.23).Phase(0.5).Square(130.671875, 0.07).Duty(0.25).Sine(522.6875, 0.04).String()
 
 	// A bright, short pulse for the sixteenth-note arpeggio
-	arpRecipe = recipe.New(512).Sixteen().Square(261.34375, 0.19).Duty(0.25).Sine(522.6875, 0.06).Sine(1046.875, 0.025).String()
+	arpRecipe = recipe.New(512).Square(261.34375, 0.19).Duty(0.25).Sine(522.6875, 0.06).Sine(1046.875, 0.025).String()
 
 	// A soft mallet for the offbeat chord answer
-	pluckRecipe = recipe.New(2048).Sixteen().Triangle(261.34375, 0.20).Saw(261.34375, 0.09).Sine(522.6875, 0.05).String()
+	pluckRecipe = recipe.New(2048).Triangle(261.34375, 0.20).Saw(261.34375, 0.09).Sine(522.6875, 0.05).String()
 
 	// A detuned saw bass with a sine fundamental
-	bassRecipe = recipe.New(256).Sixteen().Saw(261.34375, 0.20).Saw(262.2, 0.13).Phase(0.5).Sine(130.671875, 0.20).String()
+	bassRecipe = recipe.New(256).Saw(261.34375, 0.20).Saw(262.2, 0.13).Phase(0.5).Sine(130.671875, 0.20).String()
 
 	// A wide, restrained pad; its four notes are spread across four channels
-	padRecipe = recipe.New(512).Sixteen().Saw(261.34375, 0.11).Saw(262.4, 0.11).Phase(0.5).Triangle(130.671875, 0.09).Sine(65.3359375, 0.05).String()
+	padRecipe = recipe.New(512).Saw(261.34375, 0.11).Saw(262.4, 0.11).Phase(0.5).Triangle(130.671875, 0.09).Sine(65.3359375, 0.05).String()
 
 	// A deep kick with a short click, played at C-2
-	kickRecipe = recipe.New(2000).Sixteen().Sine(220, 0.72).Sine(440, 0.18).Noise(4000, 0.035).String()
+	kickRecipe = recipe.New(2000).Sine(220, 0.72).Sine(440, 0.18).Noise(4000, 0.035).String()
 
 	// A broad noise clap with a little tonal body
-	snareRecipe = recipe.New(2400).Sixteen().Noise(1200, 0.50).Noise(3600, 0.18).Triangle(185, 0.12).String()
+	snareRecipe = recipe.New(2400).Noise(1200, 0.50).Noise(3600, 0.18).Triangle(185, 0.12).String()
 
 	// A short closed hat
-	hatRecipe = recipe.New(500).Sixteen().Noise(1, 0.36).Square(4100, 0.035).String()
+	hatRecipe = recipe.New(500).Noise(1, 0.36).Square(4100, 0.035).String()
 
 	// A longer open hat for the offbeats
-	openHatRecipe = recipe.New(1800).Sixteen().Noise(1, 0.34).Square(3800, 0.03).String()
+	openHatRecipe = recipe.New(1800).Noise(1, 0.34).Square(3800, 0.03).String()
 
 	// A long bright crash
-	crashRecipe = recipe.New(8000).Sixteen().Noise(1000, 0.40).Noise(3000, 0.22).String()
+	crashRecipe = recipe.New(8000).Noise(1000, 0.40).Noise(3000, 0.22).String()
 
 	// A filtered-noise swell, long enough to run across a whole build without looping
-	riserRecipe = recipe.New(60000).Sixteen().Noise(1500, 0.32).Noise(3500, 0.10).String()
+	riserRecipe = recipe.New(60000).Noise(1500, 0.32).Noise(3500, 0.10).String()
 	progression = []chordBar{
 		{
 			name: "F#m9",

@@ -27,9 +27,9 @@ type (
 	}
 )
 
-// Sixteen makes the recipe 16-bit, rather than the default 8-bit
-func (b *Builder) Sixteen() *Builder {
-	b.sixteen = true
+// Eight makes the recipe 8-bit, rather than the default 16-bit
+func (b *Builder) Eight() *Builder {
+	b.sixteen = false
 
 	return b
 }
@@ -69,10 +69,11 @@ func (b *Builder) Triangle(freq, amp float64) *Builder {
 	return b.layer("triangle", freq, amp)
 }
 
-// New starts a recipe with the given length in frames, at 8 bits
+// New starts a recipe with the given length in frames, at 16 bits
 func New(frames int) *Builder {
 	return &Builder{
 		frames: frames,
+		sixteen: true,
 	}
 }
 
@@ -89,6 +90,8 @@ func (b *Builder) String() string {
 
 	if b.sixteen {
 		sb.WriteString("Bits: 16\n")
+	} else {
+		sb.WriteString("Bits: 8\n")
 	}
 
 	for _, l := range b.layers {

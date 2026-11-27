@@ -42,7 +42,7 @@ func TestBuilderRendersLikeText(t *testing.T) {
 		t.Fatalf("Render: %v", err)
 	}
 
-	pcmText, _, err := Render(strings.NewReader("Frames: 64\nLayer: square 100 1 duty=0.25\n"))
+	pcmText, _, err := Render(strings.NewReader("Frames: 64\nBits: 16\nLayer: square 100 1 duty=0.25\n"))
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -63,14 +63,20 @@ func parseText(t *testing.T, text string) *Recipe {
 	return rc
 }
 
-func TestBuilderDefaultsToEightBit(t *testing.T) {
-	if rc := parseText(t, New(64).Sine(100, 1).String()); rc.Sixteen {
+func TestBuilderDefaultsToSixteenBit(t *testing.T) {
+	if rc := parseText(t, New(64).Sine(100, 1).String()); !rc.Sixteen {
+		t.Errorf("got 8-bit, want 16-bit")
+	}
+}
+
+func TestBuilderEightBit(t *testing.T) {
+	if rc := parseText(t, New(64).Eight().Sine(100, 1).String()); rc.Sixteen {
 		t.Errorf("got 16-bit, want 8-bit")
 	}
 }
 
 func TestBuilderMatchesTextRecipe(t *testing.T) {
-	const text string = "Frames: 256\n" + "Layer: square 261.34375 0.45 duty=0.25\n" + "Layer: sine 130.671875 0.35\n" + "Layer: triangle 523.4375 0.2 phase=0.5\n" + "Layer: saw 65.4 0.1\n" + "Layer: noise 1000 0.05\n"
+	const text string = "Frames: 256\n" + "Bits: 16\n" + "Layer: square 261.34375 0.45 duty=0.25\n" + "Layer: sine 130.671875 0.35\n" + "Layer: triangle 523.4375 0.2 phase=0.5\n" + "Layer: saw 65.4 0.1\n" + "Layer: noise 1000 0.05\n"
 
 	built := New(256).Square(261.34375, 0.45).Duty(0.25).Sine(130.671875, 0.35).Triangle(523.4375, 0.2).Phase(0.5).Saw(65.4, 0.1).Noise(1000, 0.05).String()
 	if built != text {
@@ -82,8 +88,8 @@ func TestBuilderMatchesTextRecipe(t *testing.T) {
 	}
 }
 
-func TestBuilderSixteenBit(t *testing.T) {
-	if rc := parseText(t, New(64).Sixteen().Sine(100, 1).String()); !rc.Sixteen || rc.Frames != 64 {
+func TestBuilderSixteenBitFrames(t *testing.T) {
+	if rc := parseText(t, New(64).Sine(100, 1).String()); !rc.Sixteen || rc.Frames != 64 {
 		t.Errorf("got Sixteen %v, Frames %d", rc.Sixteen, rc.Frames)
 	}
 }
