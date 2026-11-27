@@ -92,10 +92,10 @@ var (
 	stabRecipe = recipe.New(2048).Sixteen().Sine(261.34375, 0.34).Sine(522.6875, 0.1).Sine(784.03125, 0.045).Triangle(261.34375, 0.08).String()
 
 	// A deep sine bass with a little grit, tuned to C-4
-	bassRecipe = recipe.New(256).Sixteen().Sine(130.671875, 0.32).Sine(65.3359375, 0.14).Saw(261.34375, 0.07).String()
+	bassRecipe = recipe.New(256).Sixteen().Sine(261.34375, 0.28).Sine(130.671875, 0.12).Saw(261.34375, 0.1).String()
 
 	// A wide, slow pad
-	padRecipe = recipe.New(512).Sixteen().Saw(261.34375, 0.1).Saw(262.6, 0.1).Phase(0.5).Triangle(130.671875, 0.1).Sine(65.3359375, 0.06).String()
+	padRecipe = recipe.New(512).Sixteen().Saw(261.34375, 0.1).Triangle(261.34375, 0.14).Sine(261.34375, 0.1).Saw(522.6875, 0.03).String()
 
 	// A kick with a click, played at C-2 so its 200 Hz sine lands at 50 Hz
 	kickRecipe = recipe.New(2000).Sixteen().Sine(200, 0.85).Sine(400, 0.15).Noise(3000, 0.02).String()
@@ -344,6 +344,11 @@ func (w pattern) drums(b, style int) {
 	}
 
 	for i, r := 0, 0; r < song.RowsPerBar; i, r = i+1, r+step {
+		// leave the offbeat to the open hat, except in the build
+		if style >= 2 && style < 4 && r%4 == 2 {
+			continue
+		}
+
 		vol := 0x1C
 
 		if r%4 == 0 {
@@ -424,12 +429,7 @@ func (w pattern) arrange(sec section, chords []chordBar) {
 	for b, cb := range chords {
 		w.pads(b, cb, sec.padVol)
 
-		stabs := []int{3, 6, 11, 14}
-
-		if sec.stabVol != 0 {
-			w.stabs(b, cb, stabs, sec.stabVol)
-		}
-
+		w.stabs(b, cb, []int{3, 6, 11, 14}, sec.stabVol)
 		w.arp(b, cb, sec.arpStep, sec.arpVol)
 		w.bass(b, cb, sec.bassStyle, sec.bassVol)
 		w.drums(b, sec.drumStyle)
@@ -446,15 +446,6 @@ func (w pattern) arrange(sec section, chords []chordBar) {
 	if sec.riser {
 		w.riser(0x2C)
 	}
-}
-
-// newSection starts a pattern of four bars and lays out the section in it
-func newSection(s *song.Song, k *kit, sec section) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	w.arrange(sec, progression)
-
-	return w.p
 }
 
 func intro(s *song.Song, k *kit) *song.Pattern {
@@ -751,7 +742,7 @@ func main() {
 			Pan: 128,
 			Envelope: []song.Point{
 				{X: 0, Y: 0},
-				{X: 20, Y: 64},
+				{X: 8, Y: 64},
 			},
 			Fadeout: 1024,
 		}),
