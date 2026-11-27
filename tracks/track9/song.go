@@ -101,19 +101,6 @@ func withVol(vol int, extra ...song.Opt) []song.Opt {
 	return append(opts, extra...)
 }
 
-// pads holds the chord of bar b on the three pad voices, spread across the stereo field
-func (w pattern) pads(b int, chord string, vol int) {
-	if vol == 0 {
-		return
-	}
-
-	pans := [3]int{0x50, 0x80, 0xB0}
-
-	for i, note := range song.Triad(chord, 3) {
-		w.p.Hit(at(b, 0), chPad+i, note, w.k.pad, withVol(vol, song.Pan(pans[i]))...)
-	}
-}
-
 // bass plays the root of the chord on a syncopated figure, with the octave above on the off-beats
 func (w pattern) bass(b int, chord string, vol int) {
 	if vol == 0 {
@@ -131,27 +118,6 @@ func (w pattern) bass(b int, chord string, vol int) {
 		}
 
 		w.p.Hit(at(b, r), chBass, note, w.k.bass, withVol(vol)...)
-	}
-}
-
-// melody plays a phrase of lead notes in bar b, each held until the next note
-func (w pattern) melody(b int, phrase []hit, vol int) {
-	if vol == 0 {
-		return
-	}
-
-	for i, h := range phrase {
-		w.p.Hit(at(b, h.row), chLead, h.note, w.k.lead, withVol(vol, song.Vibrato(4, 2))...)
-
-		off := song.RowsPerBar - 1
-
-		if i+1 < len(phrase) {
-			off = phrase[i+1].row - 1
-		}
-
-		if off > h.row {
-			w.p.Hit(at(b, off), chLead, "###", nil)
-		}
 	}
 }
 
@@ -190,6 +156,40 @@ func (w pattern) drums(b, style int) {
 func (w pattern) fill(b int) {
 	for i, r := range []int{12, 13, 14, 15} {
 		w.p.Hit(at(b, r), chSnare, "C-4", w.k.snare, withVol(0x30+i*6)...)
+	}
+}
+
+// melody plays a phrase of lead notes in bar b, each held until the next note
+func (w pattern) melody(b int, phrase []hit, vol int) {
+	if vol == 0 {
+		return
+	}
+
+	for i, h := range phrase {
+		w.p.Hit(at(b, h.row), chLead, h.note, w.k.lead, withVol(vol, song.Vibrato(4, 2))...)
+
+		off := song.RowsPerBar - 1
+
+		if i+1 < len(phrase) {
+			off = phrase[i+1].row - 1
+		}
+
+		if off > h.row {
+			w.p.Hit(at(b, off), chLead, "###", nil)
+		}
+	}
+}
+
+// pads holds the chord of bar b on the three pad voices, spread across the stereo field
+func (w pattern) pads(b int, chord string, vol int) {
+	if vol == 0 {
+		return
+	}
+
+	pans := [3]int{0x50, 0x80, 0xB0}
+
+	for i, note := range song.Triad(chord, 3) {
+		w.p.Hit(at(b, 0), chPad+i, note, w.k.pad, withVol(vol, song.Pan(pans[i]))...)
 	}
 }
 
@@ -232,8 +232,14 @@ func main() {
 			Volume: 28,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 0},
-				{X: 24, Y: 64},
+				{
+					X: 0,
+					Y: 0,
+				},
+				{
+					X: 24,
+					Y: 64,
+				},
 			},
 			Fadeout: 1024,
 		}),
@@ -244,8 +250,14 @@ func main() {
 			Volume: 48,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 0},
-				{X: 2, Y: 64},
+				{
+					X: 0,
+					Y: 0,
+				},
+				{
+					X: 2,
+					Y: 64,
+				},
 			},
 		}),
 		lead: s.Instrument(song.Instrument{
@@ -255,8 +267,14 @@ func main() {
 			Volume: 34,
 			Pan: 96,
 			Envelope: []song.Point{
-				{X: 0, Y: 0},
-				{X: 2, Y: 64},
+				{
+					X: 0,
+					Y: 0,
+				},
+				{
+					X: 2,
+					Y: 64,
+				},
 			},
 			Fadeout: 512,
 		}),
@@ -266,8 +284,14 @@ func main() {
 			Volume: 58,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 14, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 14,
+					Y: 0,
+				},
 			},
 		}),
 		snare: s.Instrument(song.Instrument{
@@ -276,8 +300,14 @@ func main() {
 			Volume: 44,
 			Pan: 136,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 16, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 16,
+					Y: 0,
+				},
 			},
 		}),
 		hat: s.Instrument(song.Instrument{
@@ -286,17 +316,47 @@ func main() {
 			Volume: 30,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 3, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 3,
+					Y: 0,
+				},
 			},
 		}),
 	}
-
-	intro := newSection(s, k, section{padVol: 0x20})
-	verseP := newSection(s, k, section{padVol: 0x28, bassVol: 0x30, drumStyle: 1, leadVol: 0x34, phrase: verse})
-	chorusP := newSection(s, k, section{padVol: 0x30, bassVol: 0x38, drumStyle: 2, leadVol: 0x40, phrase: chorus, fill: true})
-	breakP := newSection(s, k, section{padVol: 0x24, leadVol: 0x30, phrase: verse})
-	outro := newSection(s, k, section{padVol: 0x20, bassVol: 0x28, drumStyle: 1, leadVol: 0x2C, phrase: chorus})
+	intro := newSection(s, k, section{
+		padVol: 0x20,
+	})
+	verseP := newSection(s, k, section{
+		padVol: 0x28,
+		bassVol: 0x30,
+		drumStyle: 1,
+		leadVol: 0x34,
+		phrase: verse,
+	})
+	chorusP := newSection(s, k, section{
+		padVol: 0x30,
+		bassVol: 0x38,
+		drumStyle: 2,
+		leadVol: 0x40,
+		phrase: chorus,
+		fill: true,
+	})
+	breakP := newSection(s, k, section{
+		padVol: 0x24,
+		leadVol: 0x30,
+		phrase: verse,
+	})
+	outro := newSection(s, k, section{
+		padVol: 0x20,
+		bassVol: 0x28,
+		drumStyle: 1,
+		leadVol: 0x2C,
+		phrase: chorus,
+	})
 
 	s.Play(intro, verseP, verseP, chorusP, breakP, chorusP, outro)
 
