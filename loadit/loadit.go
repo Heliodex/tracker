@@ -57,6 +57,8 @@ type (
 		d []byte
 		rep *report
 		smpOff []int
+		// mix is the module's mixing volume, from 0 to 128, which IT applies to all output
+		mix int
 	}
 )
 
@@ -129,7 +131,7 @@ func Read(d []byte) (*loadtext.TextFormat, []string, error) {
 	}
 
 	rep := &report{counts: map[string]int{}}
-	c := &conv{d: d, rep: rep}
+	c := &conv{d: d, rep: rep, mix: int(min(hdr[0x31], 128))}
 
 	tf := &loadtext.TextFormat{
 		LinearSlides: flags&flagLinear != 0,
@@ -900,7 +902,8 @@ func (c *conv) sample(n int, instPan byte) (loadtext.Sample, [4]uint8, bool, err
 	}
 
 	// the sample volume is scaled by its global volume, which XM does not have
-	s.Volume = uint8(clamp(int(h[0x13])*int(min(h[0x11], 64))/64, 0, 64))
+	// the module's mixing volume is applied to every sample, as XM has no such setting
+	s.Volume = uint8(clamp(int(h[0x13])*int(min(h[0x11], 64))*c.mix/(64*128), 0, 64))
 
 	s.Panning = 128
 
