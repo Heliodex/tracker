@@ -6,9 +6,10 @@ package main
 // glass harbour – Haiku 5.5
 
 import (
+	"log"
+
 	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/song"
-	"log"
 )
 
 type (

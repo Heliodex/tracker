@@ -72,6 +72,25 @@ func TestBuildNeedsOutputForStdin(t *testing.T) {
 	}
 }
 
+func TestBuildNoOpusSkipsRender(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "plain.txt")
+
+	if err := os.WriteFile(in, []byte(sampleText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"build", "-no-opus", in}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("build: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "plain.opus")); err == nil {
+		t.Errorf("plain.opus written despite -no-opus")
+	}
+}
+
 func TestBuildRefusesToOverwrite(t *testing.T) {
 	dir := t.TempDir()
 	in := filepath.Join(dir, "song.txt")
@@ -120,6 +139,51 @@ func TestBuildSongGoRejectsOutput(t *testing.T) {
 
 	if err := run([]string{"build", "-no-opus", "-o", "x.xm", "../../tracks/track3-go"}, nil, &stdout, &stderr); err == nil {
 		t.Error("expected an error")
+	}
+}
+
+func TestBuildWritesOpusAndNoWav(t *testing.T) {
+	const want string = "plain.opus plain.txt plain.xm"
+
+	if err := checkOpusTools(); err != nil {
+		t.Skip(err)
+	}
+
+	dir := t.TempDir()
+	in := filepath.Join(dir, "plain.txt")
+
+	if err := os.WriteFile(in, []byte(sampleText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	if err := run([]string{"build", in}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("build: %v\n%s", err, stderr.String())
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var names []string
+
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+
+	if strings.Join(names, " ") != want {
+		t.Errorf("got files %v, want %s", names, want)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "plain.opus"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.HasPrefix(data, []byte("OggS")) {
+		t.Errorf("plain.opus is not an Ogg stream")
 	}
 }
 
@@ -275,67 +339,5 @@ func TestExportTextOnlyToStdout(t *testing.T) {
 
 	if !strings.Contains(stdout.String(), "NumChannels: 2\n") {
 		t.Errorf("unexpected output:\n%s", stdout.String())
-	}
-}
-
-func TestBuildWritesOpusAndNoWav(t *testing.T) {
-	if err := checkOpusTools(); err != nil {
-		t.Skip(err)
-	}
-
-	dir := t.TempDir()
-	in := filepath.Join(dir, "plain.txt")
-
-	if err := os.WriteFile(in, []byte(sampleText), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	if err := run([]string{"build", in}, nil, &stdout, &stderr); err != nil {
-		t.Fatalf("build: %v\n%s", err, stderr.String())
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var names []string
-
-	for _, e := range entries {
-		names = append(names, e.Name())
-	}
-
-	if want := "plain.opus plain.txt plain.xm"; strings.Join(names, " ") != want {
-		t.Errorf("got files %v, want %s", names, want)
-	}
-
-	data, err := os.ReadFile(filepath.Join(dir, "plain.opus"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.HasPrefix(data, []byte("OggS")) {
-		t.Errorf("plain.opus is not an Ogg stream")
-	}
-}
-
-func TestBuildNoOpusSkipsRender(t *testing.T) {
-	dir := t.TempDir()
-	in := filepath.Join(dir, "plain.txt")
-
-	if err := os.WriteFile(in, []byte(sampleText), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	if err := run([]string{"build", "-no-opus", in}, nil, &stdout, &stderr); err != nil {
-		t.Fatalf("build: %v", err)
-	}
-
-	if _, err := os.Stat(filepath.Join(dir, "plain.opus")); err == nil {
-		t.Errorf("plain.opus written despite -no-opus")
 	}
 }

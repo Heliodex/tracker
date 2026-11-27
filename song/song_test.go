@@ -41,39 +41,6 @@ func TestBadRecipeIsReported(t *testing.T) {
 	}
 }
 
-func TestLoopWithOffCycleLayerIsReported(t *testing.T) {
-	const detuned = "Frames: 256\nLayer: saw 262.4 0.3\n"
-
-	s := New("x", 1)
-	s.Instrument(Instrument{Name: "a", Loop: true, Recipe: detuned})
-
-	if _, err := s.Build(); err == nil {
-		t.Error("expected an error for a looping off-cycle layer")
-	}
-}
-
-func TestOffCycleAllowsDetunedLoop(t *testing.T) {
-	const detuned = "Frames: 256\nLayer: saw 262.4 0.3\n"
-
-	s := New("x", 1)
-	s.Instrument(Instrument{Name: "a", Loop: true, OffCycle: true, Recipe: detuned})
-
-	if _, err := s.Build(); err != nil {
-		t.Errorf("got %v, want no error", err)
-	}
-}
-
-func TestOneShotOffCycleIsAllowed(t *testing.T) {
-	const detuned = "Frames: 256\nLayer: saw 262.4 0.3\n"
-
-	s := New("x", 1)
-	s.Instrument(Instrument{Name: "a", Recipe: detuned})
-
-	if _, err := s.Build(); err != nil {
-		t.Errorf("got %v, want no error for a one-shot", err)
-	}
-}
-
 func TestHitReplacesTheCell(t *testing.T) {
 	s := New("x", 1)
 	ins := s.Instrument(Instrument{
@@ -108,6 +75,54 @@ func TestInstrumentWithoutEnvelopeGetsFlatEnvelope(t *testing.T) {
 
 	if ih := f.Instruments[0]; ih.VolFlags&1 == 0 || ih.VolPoints != 1 || ih.VolEnv[0].Y != 64 {
 		t.Errorf("got flags %d, %d points, first point %+v; want a flat envelope at 64", ih.VolFlags, ih.VolPoints, ih.VolEnv[0])
+	}
+}
+
+func TestLoopWithOffCycleLayerIsReported(t *testing.T) {
+	const detuned = "Frames: 256\nLayer: saw 262.4 0.3\n"
+
+	s := New("x", 1)
+
+	s.Instrument(Instrument{
+		Name: "a",
+		Recipe: detuned,
+		Loop: true,
+	})
+
+	if _, err := s.Build(); err == nil {
+		t.Error("expected an error for a looping off-cycle layer")
+	}
+}
+
+func TestOffCycleAllowsDetunedLoop(t *testing.T) {
+	const detuned = "Frames: 256\nLayer: saw 262.4 0.3\n"
+
+	s := New("x", 1)
+
+	s.Instrument(Instrument{
+		Name: "a",
+		Recipe: detuned,
+		Loop: true,
+		OffCycle: true,
+	})
+
+	if _, err := s.Build(); err != nil {
+		t.Errorf("got %v, want no error", err)
+	}
+}
+
+func TestOneShotOffCycleIsAllowed(t *testing.T) {
+	const detuned = "Frames: 256\nLayer: saw 262.4 0.3\n"
+
+	s := New("x", 1)
+
+	s.Instrument(Instrument{
+		Name: "a",
+		Recipe: detuned,
+	})
+
+	if _, err := s.Build(); err != nil {
+		t.Errorf("got %v, want no error for a one-shot", err)
 	}
 }
 

@@ -17,8 +17,7 @@ func (rc *Recipe) Loopable() error {
 			continue
 		}
 
-		cycles := l.freq * float64(rc.Frames) / Rate
-		if math.Abs(cycles-math.Round(cycles)) > 1e-9 {
+		if cycles := l.freq * float64(rc.Frames) / Rate; math.Abs(cycles-math.Round(cycles)) > 1e-9 {
 			bad = append(bad, fmt.Sprintf("%g Hz is %.3f cycles", l.freq, cycles))
 		}
 	}

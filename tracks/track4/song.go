@@ -6,9 +6,10 @@ package main
 // pixel rush – MiMo V2.6 Flash
 
 import (
+	"log"
+
 	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/song"
-	"log"
 )
 
 type (
@@ -251,27 +252,6 @@ func octaveUp(note string) string {
 	return note[:2] + string(note[2]+1)
 }
 
-// rangeStep returns from, from+step, ... below to
-// triadOctave returns the triad for the chord, with the root in the given octave,
-// plus the root an octave up, as the four notes of an arpeggio beat
-func triadOctave(chord string, octave int) []string {
-	t := song.Triad(chord, octave)
-
-	return append(t, octaveUp(t[0]))
-}
-
-// withVol returns the options for a volume column value, which is left out when zero, followed by extra
-// arp plays the running arpeggio for a bar: the triad up and down, one note per step rows
-func (w pattern) arp(b int, cb chordBar, step, vol int) {
-	// one beat of the cycle: root third fifth third, so the bar repeats four times
-	notes := triadOctave(cb.chord, 4)
-	cycle := []string{notes[0], notes[1], notes[2], notes[1]}
-
-	for i, r := range song.Steps(0, song.RowsPerBar, step) {
-		w.p.Hit(song.At(b, r), chArp, cycle[i%len(cycle)], w.k.arp, song.VolOpts(vol)...)
-	}
-}
-
 // bass plays the bassline for a bar: the pattern of eighths named by the notes
 func (w pattern) bass(b int, cb chordBar, notes []string, vol int) {
 	for i, r := range song.Steps(0, song.RowsPerBar, 2) {
@@ -323,28 +303,6 @@ func (w pattern) hats(b, step, baseVol, accentVol int) {
 	}
 }
 
-// intro opens with the arpeggio alone, hats joining halfway
-func intro(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	w.crash(0, 0x30)
-
-	for b, cb := range verseChords {
-		w.arp(b, cb, 1, 0x2C)
-
-		if b >= 2 {
-			w.hats(b, 2, 0x20, 0x28)
-		}
-	}
-
-	// a snare pickup into the next pattern
-	for i, vol := range []int{0x20, 0x28, 0x30, 0x38} {
-		w.p.Hit(song.At(3, 12+i), chSnare, "C-4", k.snare, song.VolOpts(vol)...)
-	}
-
-	return w.p
-}
-
 // openHats plays open hats on the offbeat eighths, alternating panning
 func (w pattern) openHats(b int) {
 	for i, r := range []int{2, 6, 10, 14} {
@@ -362,6 +320,44 @@ func (w pattern) openHats(b int) {
 func (w pattern) play(ch, b int, hits []hit, ins *song.Instrument, vol int, extra ...song.Opt) {
 	for _, h := range hits {
 		w.p.Hit(song.At(b, h.row), ch, h.note, ins, song.VolOpts(vol, extra...)...)
+	}
+}
+
+// stabs plays offbeat chord-tone stabs on the harm channel
+func (w pattern) stabs(b int, cb chordBar, vol int) {
+	// the fifth of the chord in octave 4: E-2 gives B-4, C-2 gives G-4
+	fifth := fifthUp(cb.bass[:1] + "-4")
+
+	for _, r := range []int{2, 6, 10, 14} {
+		w.p.Hit(song.At(b, r), chHarm, fifth, w.k.harm, song.VolOpts(vol)...)
+	}
+}
+
+// tomFill plays a four-note tom run down, starting at row start of bar b
+func (w pattern) tomFill(b, start int) {
+	for i, note := range []string{"C-5", "A-4", "G-4", "E-4"} {
+		w.p.Hit(song.At(b, start+i), chFx, note, w.k.tom, song.VolOpts(0x30+i*4)...)
+	}
+}
+
+// rangeStep returns from, from+step, ... below to
+// triadOctave returns the triad for the chord, with the root in the given octave,
+// plus the root an octave up, as the four notes of an arpeggio beat
+func triadOctave(chord string, octave int) []string {
+	t := song.Triad(chord, octave)
+
+	return append(t, octaveUp(t[0]))
+}
+
+// withVol returns the options for a volume column value, which is left out when zero, followed by extra
+// arp plays the running arpeggio for a bar: the triad up and down, one note per step rows
+func (w pattern) arp(b int, cb chordBar, step, vol int) {
+	// one beat of the cycle: root third fifth third, so the bar repeats four times
+	notes := triadOctave(cb.chord, 4)
+	cycle := []string{notes[0], notes[1], notes[2], notes[1]}
+
+	for i, r := range song.Steps(0, song.RowsPerBar, step) {
+		w.p.Hit(song.At(b, r), chArp, cycle[i%len(cycle)], w.k.arp, song.VolOpts(vol)...)
 	}
 }
 
@@ -400,23 +396,6 @@ func bridge(s *song.Song, k *kit) *song.Pattern {
 	return w.p
 }
 
-// stabs plays offbeat chord-tone stabs on the harm channel
-func (w pattern) stabs(b int, cb chordBar, vol int) {
-	// the fifth of the chord in octave 4: E-2 gives B-4, C-2 gives G-4
-	fifth := fifthUp(cb.bass[:1] + "-4")
-
-	for _, r := range []int{2, 6, 10, 14} {
-		w.p.Hit(song.At(b, r), chHarm, fifth, w.k.harm, song.VolOpts(vol)...)
-	}
-}
-
-// tomFill plays a four-note tom run down, starting at row start of bar b
-func (w pattern) tomFill(b, start int) {
-	for i, note := range []string{"C-5", "A-4", "G-4", "E-4"} {
-		w.p.Hit(song.At(b, start+i), chFx, note, w.k.tom, song.VolOpts(0x30+i*4)...)
-	}
-}
-
 // chorus plays the anthemic melody with harmony beneath it
 func chorus(s *song.Song, k *kit, lead, harm [][]hit, big bool) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
@@ -441,6 +420,28 @@ func chorus(s *song.Song, k *kit, lead, harm [][]hit, big bool) *song.Pattern {
 
 	if big {
 		w.tomFill(3, 12)
+	}
+
+	return w.p
+}
+
+// intro opens with the arpeggio alone, hats joining halfway
+func intro(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+
+	w.crash(0, 0x30)
+
+	for b, cb := range verseChords {
+		w.arp(b, cb, 1, 0x2C)
+
+		if b >= 2 {
+			w.hats(b, 2, 0x20, 0x28)
+		}
+	}
+
+	// a snare pickup into the next pattern
+	for i, vol := range []int{0x20, 0x28, 0x30, 0x38} {
+		w.p.Hit(song.At(3, 12+i), chSnare, "C-4", k.snare, song.VolOpts(vol)...)
 	}
 
 	return w.p

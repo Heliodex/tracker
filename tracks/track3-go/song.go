@@ -6,10 +6,11 @@ package main
 // night drive – DeepSeek V4.1 Flash
 
 import (
-	"github.com/Heliodex/tracker/recipe"
-	"github.com/Heliodex/tracker/song"
 	"log"
 	"slices"
+
+	"github.com/Heliodex/tracker/recipe"
+	"github.com/Heliodex/tracker/song"
 )
 
 type (

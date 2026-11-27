@@ -6,11 +6,12 @@ package main
 // blue hour – Hy4 Flash
 
 import (
+	"log"
+	"slices"
+
 	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/song"
 	"github.com/Heliodex/tracker/types"
-	"log"
-	"slices"
 )
 
 type (

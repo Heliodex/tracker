@@ -11,19 +11,17 @@ func TestAtCountsRowsFromTheStartOfThePattern(t *testing.T) {
 	}
 }
 
-func TestSteps(t *testing.T) {
-	if got, want := Steps(0, 16, 4), []int{0, 4, 8, 12}; !reflect.DeepEqual(got, want) {
-		t.Errorf("Steps(0, 16, 4) = %v, want %v", got, want)
-	}
-
-	if got := Steps(4, 4, 1); len(got) != 0 {
-		t.Errorf("Steps(4, 4, 1) = %v, want none", got)
-	}
-}
-
 func TestPoints(t *testing.T) {
-	want := []Point{{X: 0, Y: 0}, {X: 24, Y: 64}}
-
+	want := []Point{
+		{
+			X: 0,
+			Y: 0,
+		},
+		{
+			X: 24,
+			Y: 64,
+		},
+	}
 	if got := Points(0, 0, 24, 64); !reflect.DeepEqual(got, want) {
 		t.Errorf("Points(0, 0, 24, 64) = %v, want %v", got, want)
 	}
@@ -37,6 +35,16 @@ func TestPointsOddPanics(t *testing.T) {
 	}()
 
 	Points(0, 0, 24)
+}
+
+func TestSteps(t *testing.T) {
+	if got, want := Steps(0, 16, 4), []int{0, 4, 8, 12}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Steps(0, 16, 4) = %v, want %v", got, want)
+	}
+
+	if got := Steps(4, 4, 1); len(got) != 0 {
+		t.Errorf("Steps(4, 4, 1) = %v, want none", got)
+	}
 }
 
 func TestVolOpts(t *testing.T) {

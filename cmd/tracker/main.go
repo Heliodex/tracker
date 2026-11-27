@@ -51,8 +51,24 @@ Use "-" as the input to read from stdin. Reading from stdin needs -o with build,
 and -d with export when the module has instruments.
 `
 
-// errUsage is returned for bad command lines, after the usage text has been printed
-var errUsage = errors.New("bad usage")
+var (
+	// errUsage is returned for bad command lines, after the usage text has been printed
+	errUsage = errors.New("bad usage")
+
+	// opusTools are the programs that render an Opus file
+	opusTools = []string{"openmpt123", "ffmpeg"}
+)
+
+// checkOpusTools returns an error if a program that renders Opus is not installed
+func checkOpusTools() error {
+	for _, tool := range opusTools {
+		if _, err := exec.LookPath(tool); err != nil {
+			return fmt.Errorf("rendering Opus needs %s (install it, or use -no-opus): %w", tool, err)
+		}
+	}
+
+	return nil
+}
 
 // newFlagSet returns the flags shared by every command
 func newFlagSet(name string, stderr io.Writer, o *options) *flag.FlagSet {
@@ -64,6 +80,11 @@ func newFlagSet(name string, stderr io.Writer, o *options) *flag.FlagSet {
 	fs.BoolVar(&o.force, "f", false, "overwrite existing files")
 
 	return fs
+}
+
+// opusPath gives the Opus file beside an XM file
+func opusPath(xm string) string {
+	return strings.TrimSuffix(xm, filepath.Ext(xm)) + ".opus"
 }
 
 // parseArgs parses flags and returns the positional arguments, allowing flags after them
@@ -141,6 +162,68 @@ func readInput(path string, stdin io.Reader) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
+// refuseExisting returns an error if path already exists
+func refuseExisting(path string) error {
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("%s already exists (use -f to overwrite)", path)
+	}
+
+	return nil
+}
+
+// renderOpus renders an XM module to a 48 kHz stereo Opus file. openmpt123 writes raw audio into a pipe that ffmpeg
+// encodes, so no WAV file is written. The Opus file is removed if either program fails.
+func renderOpus(xm, opus string, force bool, stderr io.Writer) error {
+	if !force {
+		if err := refuseExisting(opus); err != nil {
+			return err
+		}
+	}
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+
+	defer r.Close()
+
+	player := exec.Command("openmpt123", "--batch", "--stdout", "--quiet", "--no-float", "--samplerate", "48000", "--channels", "2", "--", xm)
+	player.Stdout = w
+	player.Stderr = stderr
+	encoder := exec.Command("ffmpeg", "-y", "-loglevel", "error", "-f", "s16le", "-ar", "48000", "-ac", "2", "-i", "pipe:0", "-c:a", "libopus", opus)
+	encoder.Stdin = r
+	encoder.Stderr = stderr
+
+	if err := encoder.Start(); err != nil {
+		w.Close()
+		return fmt.Errorf("ffmpeg: %w", err)
+	}
+
+	if err := player.Start(); err != nil {
+		// closing the pipe ends ffmpeg's input, so it stops
+		w.Close()
+		encoder.Wait()
+
+		return fmt.Errorf("openmpt123: %w", err)
+	}
+
+	// the parent's copy of the write end must close, or ffmpeg never sees the end of the audio
+	w.Close()
+
+	playErr := player.Wait()
+	if encErr := encoder.Wait(); playErr != nil || encErr != nil {
+		os.Remove(opus)
+
+		if playErr != nil {
+			return fmt.Errorf("openmpt123 %s: %w", xm, playErr)
+		}
+
+		return fmt.Errorf("ffmpeg %s: %w", opus, encErr)
+	}
+
+	return nil
+}
+
 // runSongGo builds a song folder by running its song.go, which writes its own module.
 // The folder must be inside a Go module, such as this repository.
 func runSongGo(dir string, stdout, stderr io.Writer) error {
@@ -184,15 +267,6 @@ func songGoDir(in string) (string, bool) {
 	return dir, true
 }
 
-// refuseExisting returns an error if path already exists
-func refuseExisting(path string) error {
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("%s already exists (use -f to overwrite)", path)
-	}
-
-	return nil
-}
-
 // writeOutput writes data to path, or stdout for "-", refusing to overwrite unless force is set
 func writeOutput(path string, force bool, data []byte, stdout io.Writer) error {
 	if path == "-" {
@@ -210,82 +284,6 @@ func writeOutput(path string, force bool, data []byte, stdout io.Writer) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
-// opusTools are the programs that render an Opus file
-var opusTools = []string{"openmpt123", "ffmpeg"}
-
-// checkOpusTools returns an error if a program that renders Opus is not installed
-func checkOpusTools() error {
-	for _, tool := range opusTools {
-		if _, err := exec.LookPath(tool); err != nil {
-			return fmt.Errorf("rendering Opus needs %s (install it, or use -no-opus): %w", tool, err)
-		}
-	}
-
-	return nil
-}
-
-// opusPath gives the Opus file beside an XM file
-func opusPath(xm string) string {
-	return strings.TrimSuffix(xm, filepath.Ext(xm)) + ".opus"
-}
-
-// renderOpus renders an XM module to a 48 kHz stereo Opus file. openmpt123 writes raw audio into a pipe that ffmpeg
-// encodes, so no WAV file is written. The Opus file is removed if either program fails.
-func renderOpus(xm, opus string, force bool, stderr io.Writer) error {
-	if !force {
-		if err := refuseExisting(opus); err != nil {
-			return err
-		}
-	}
-
-	r, w, err := os.Pipe()
-	if err != nil {
-		return err
-	}
-
-	defer r.Close()
-
-	player := exec.Command("openmpt123", "--batch", "--stdout", "--quiet", "--no-float", "--samplerate", "48000", "--channels", "2", "--", xm)
-	player.Stdout = w
-	player.Stderr = stderr
-
-	encoder := exec.Command("ffmpeg", "-y", "-loglevel", "error", "-f", "s16le", "-ar", "48000", "-ac", "2", "-i", "pipe:0", "-c:a", "libopus", opus)
-	encoder.Stdin = r
-	encoder.Stderr = stderr
-
-	if err := encoder.Start(); err != nil {
-		w.Close()
-
-		return fmt.Errorf("ffmpeg: %w", err)
-	}
-
-	if err := player.Start(); err != nil {
-		// closing the pipe ends ffmpeg's input, so it stops
-		w.Close()
-		encoder.Wait()
-
-		return fmt.Errorf("openmpt123: %w", err)
-	}
-
-	// the parent's copy of the write end must close, or ffmpeg never sees the end of the audio
-	w.Close()
-
-	playErr := player.Wait()
-	encErr := encoder.Wait()
-
-	if playErr != nil || encErr != nil {
-		os.Remove(opus)
-
-		if playErr != nil {
-			return fmt.Errorf("openmpt123 %s: %w", xm, playErr)
-		}
-
-		return fmt.Errorf("ffmpeg %s: %w", opus, encErr)
-	}
-
-	return nil
-}
-
 func build(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	var (
 		o options
@@ -293,6 +291,7 @@ func build(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	)
 
 	fs := newFlagSet("build", stderr, &o)
+
 	fs.BoolVar(&noOpus, "no-opus", false, "do not render the module to an Opus file beside it")
 
 	positional, err := parseArgs(fs, args)

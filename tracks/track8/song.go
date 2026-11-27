@@ -6,9 +6,10 @@ package main
 // neon dusk – Iceman
 
 import (
+	"log"
+
 	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/song"
-	"log"
 )
 
 type (

@@ -6,9 +6,10 @@ package main
 // afterglow – HungerG
 
 import (
+	"log"
+
 	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/song"
-	"log"
 )
 
 type (

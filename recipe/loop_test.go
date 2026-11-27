@@ -5,14 +5,6 @@ import (
 	"testing"
 )
 
-func TestLoopableWholeCycles(t *testing.T) {
-	rc := parseText(t, "Frames: 256\nLayer: sine 261.34375 0.5\nLayer: square 522.6875 0.2 duty=0.25\nLayer: noise 1000 0.1\n")
-
-	if err := rc.Loopable(); err != nil {
-		t.Errorf("got %v, want nil", err)
-	}
-}
-
 func TestLoopableDetunedLayerFails(t *testing.T) {
 	rc := parseText(t, "Frames: 256\nLayer: saw 262.4 0.3\nLayer: sine 261.34375 0.5\n")
 
@@ -40,5 +32,13 @@ func TestLoopableOneShotCheckedOnlyWhenAsked(t *testing.T) {
 
 	if err := rc.Loopable(); err == nil {
 		t.Errorf("got nil, want an error for 62.5 cycles")
+	}
+}
+
+func TestLoopableWholeCycles(t *testing.T) {
+	rc := parseText(t, "Frames: 256\nLayer: sine 261.34375 0.5\nLayer: square 522.6875 0.2 duty=0.25\nLayer: noise 1000 0.1\n")
+
+	if err := rc.Loopable(); err != nil {
+		t.Errorf("got %v, want nil", err)
 	}
 }

@@ -6,9 +6,10 @@ package main
 // midnight coffee – Muse Spark 1.3
 
 import (
+	"log"
+
 	"github.com/Heliodex/tracker/recipe"
 	"github.com/Heliodex/tracker/song"
-	"log"
 )
 
 type (

@@ -6,10 +6,11 @@ package main
 // low tide – DeepSeek V4.1 Flash
 
 import (
-	"github.com/Heliodex/tracker/recipe"
-	"github.com/Heliodex/tracker/song"
 	"log"
 	"strconv"
+
+	"github.com/Heliodex/tracker/recipe"
+	"github.com/Heliodex/tracker/song"
 )
 
 type (
@@ -247,17 +248,6 @@ var (
 		{{0, "G#4"}, {8, "A#4"}, {12, "C-5"}},
 	}
 )
-
-// at returns the row at offset r within bar b
-// upOctave returns note an octave higher, for the bell that doubles the last chorus
-func upOctave(note string) string {
-	octave, err := strconv.Atoi(note[2:])
-	if err != nil || octave >= 7 {
-		panic("note cannot be doubled an octave up: " + note)
-	}
-
-	return note[:2] + strconv.Itoa(octave+1)
-}
 
 // withVol returns a volume-column option, omitted when zero, followed by extra
 // arp plays the bar's arpeggio in eighths or sixteenths, alternating across the field
@@ -630,53 +620,6 @@ func breakdown(s *song.Song, k *kit) *song.Pattern {
 	return w.p
 }
 
-func drop(s *song.Song, k *kit, answer, final bool) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-	phrase := hookA
-
-	if answer {
-		phrase = hookB
-	}
-
-	sec := section{
-		padVol: 0x32,
-		stabVol: 0x2C,
-		arpStep: 1,
-		arpVol: 0x2C,
-		bassStyle: 2,
-		bassVol: 0x3C,
-		drumStyle: 3,
-		leadVol: 0x44,
-		phrase: phrase,
-		fill: true,
-	}
-
-	if final {
-		sec.padVol = 0x36
-		sec.stabVol = 0x30
-		sec.bassVol = 0x40
-		sec.leadVol = 0x48
-		sec.arpVol = 0x30
-	}
-
-	w.arrange(sec, progression)
-	w.crash(0, 0x34)
-	w.crash(2, 0x24)
-
-	if final {
-		for b, hits := range phrase {
-			for _, h := range hits {
-				w.p.Hit(song.At(b, h.row), chSpark, upOctave(h.note), k.arp, song.VolOpts(0x44, song.Pan(0xB0))...)
-			}
-		}
-	}
-
-	// an extra kick pushes the last beat of the pattern
-	w.p.Hit(song.At(3, 14), chKick, "C-2", k.kick, song.VolOpts(0x30)...)
-
-	return w.p
-}
-
 func groove(s *song.Song, k *kit) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
 
@@ -732,6 +675,64 @@ func introTwo(s *song.Song, k *kit) *song.Pattern {
 		phrase: introLead,
 	}, progression)
 	w.crash(0, 0x20)
+
+	return w.p
+}
+
+// at returns the row at offset r within bar b
+// upOctave returns note an octave higher, for the bell that doubles the last chorus
+func upOctave(note string) string {
+	octave, err := strconv.Atoi(note[2:])
+	if err != nil || octave >= 7 {
+		panic("note cannot be doubled an octave up: " + note)
+	}
+
+	return note[:2] + strconv.Itoa(octave+1)
+}
+
+func drop(s *song.Song, k *kit, answer, final bool) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+	phrase := hookA
+
+	if answer {
+		phrase = hookB
+	}
+
+	sec := section{
+		padVol: 0x32,
+		stabVol: 0x2C,
+		arpStep: 1,
+		arpVol: 0x2C,
+		bassStyle: 2,
+		bassVol: 0x3C,
+		drumStyle: 3,
+		leadVol: 0x44,
+		phrase: phrase,
+		fill: true,
+	}
+
+	if final {
+		sec.padVol = 0x36
+		sec.stabVol = 0x30
+		sec.bassVol = 0x40
+		sec.leadVol = 0x48
+		sec.arpVol = 0x30
+	}
+
+	w.arrange(sec, progression)
+	w.crash(0, 0x34)
+	w.crash(2, 0x24)
+
+	if final {
+		for b, hits := range phrase {
+			for _, h := range hits {
+				w.p.Hit(song.At(b, h.row), chSpark, upOctave(h.note), k.arp, song.VolOpts(0x44, song.Pan(0xB0))...)
+			}
+		}
+	}
+
+	// an extra kick pushes the last beat of the pattern
+	w.p.Hit(song.At(3, 14), chKick, "C-2", k.kick, song.VolOpts(0x30)...)
 
 	return w.p
 }
