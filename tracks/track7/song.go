@@ -750,6 +750,7 @@ func main() {
 		lead: s.Instrument(song.Instrument{
 			Name: "saw lead",
 			Recipe: leadRecipe,
+			OffCycle: true,
 			Loop: true,
 			Volume: 34,
 			Pan: 96,
@@ -801,6 +802,7 @@ func main() {
 		bass: s.Instrument(song.Instrument{
 			Name: "rolling bass",
 			Recipe: bassRecipe,
+			OffCycle: true,
 			Loop: true,
 			Volume: 44,
 			Pan: 128,
@@ -818,6 +820,7 @@ func main() {
 		pad: s.Instrument(song.Instrument{
 			Name: "wide pad",
 			Recipe: padRecipe,
+			OffCycle: true,
 			Loop: true,
 			Volume: 26,
 			Pan: 128,

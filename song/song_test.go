@@ -41,6 +41,39 @@ func TestBadRecipeIsReported(t *testing.T) {
 	}
 }
 
+func TestLoopWithOffCycleLayerIsReported(t *testing.T) {
+	const detuned = "Frames: 256\nLayer: saw 262.4 0.3\n"
+
+	s := New("x", 1)
+	s.Instrument(Instrument{Name: "a", Loop: true, Recipe: detuned})
+
+	if _, err := s.Build(); err == nil {
+		t.Error("expected an error for a looping off-cycle layer")
+	}
+}
+
+func TestOffCycleAllowsDetunedLoop(t *testing.T) {
+	const detuned = "Frames: 256\nLayer: saw 262.4 0.3\n"
+
+	s := New("x", 1)
+	s.Instrument(Instrument{Name: "a", Loop: true, OffCycle: true, Recipe: detuned})
+
+	if _, err := s.Build(); err != nil {
+		t.Errorf("got %v, want no error", err)
+	}
+}
+
+func TestOneShotOffCycleIsAllowed(t *testing.T) {
+	const detuned = "Frames: 256\nLayer: saw 262.4 0.3\n"
+
+	s := New("x", 1)
+	s.Instrument(Instrument{Name: "a", Recipe: detuned})
+
+	if _, err := s.Build(); err != nil {
+		t.Errorf("got %v, want no error for a one-shot", err)
+	}
+}
+
 func TestHitReplacesTheCell(t *testing.T) {
 	s := New("x", 1)
 	ins := s.Instrument(Instrument{

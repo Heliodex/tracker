@@ -41,6 +41,9 @@ type (
 		Recipe string
 		// Loop repeats the whole sample. Without it, the sample plays once
 		Loop bool
+		// OffCycle allows a looping sample to have layers that are not whole cycles, such as a detuned unison that beats.
+		// The loop then has a small click or phase jump at its end. Without it, such a layer is an error (see recipe.Loopable)
+		OffCycle bool
 		// Volume is the sample volume from 0 to 64. Zero means 64
 		Volume int
 		// Pan is the sample panning from 0 (left) to 255 (right). Zero means centre, 128
@@ -122,6 +125,12 @@ func (s *Song) Instrument(ins Instrument) *Instrument {
 	rc, err := recipe.Parse(strings.NewReader(in.Recipe))
 	if err != nil {
 		s.fail("instrument %q: %v", in.Name, err)
+	}
+
+	if in.Loop && !in.OffCycle {
+		if err := rc.Loopable(); err != nil {
+			s.fail("instrument %q: %v (set OffCycle if the beating is intended)", in.Name, err)
+		}
 	}
 
 	in.recipe = rc

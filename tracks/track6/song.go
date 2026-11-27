@@ -735,6 +735,7 @@ func main() {
 		reese: s.Instrument(song.Instrument{
 			Name: "reese",
 			Recipe: reeseRecipe,
+			OffCycle: true,
 			Loop: true,
 			Volume: 44,
 			Pan: 128,
@@ -873,6 +874,7 @@ func main() {
 		riser: s.Instrument(song.Instrument{
 			Name: "riser",
 			Recipe: riserRecipe,
+			OffCycle: true,
 			Loop: true,
 			Volume: 28,
 			Pan: 128,
