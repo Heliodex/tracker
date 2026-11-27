@@ -115,8 +115,8 @@ func TestBuildRefusesToOverwrite(t *testing.T) {
 }
 
 func TestBuildSongGo(t *testing.T) {
-	// track3-go is a song.go folder, which the program builds into song.xm
-	const dir string = "../../tracks/track3-go"
+	// track3 is a song.go folder, which the program builds into song.xm
+	const dir string = "../../tracks/track3"
 
 	var stdout, stderr bytes.Buffer
 
@@ -137,7 +137,7 @@ func TestBuildSongGo(t *testing.T) {
 func TestBuildSongGoRejectsOutput(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 
-	if err := run([]string{"build", "-no-opus", "-o", "x.xm", "../../tracks/track3-go"}, nil, &stdout, &stderr); err == nil {
+	if err := run([]string{"build", "-no-opus", "-o", "x.xm", "../../tracks/track3"}, nil, &stdout, &stderr); err == nil {
 		t.Error("expected an error")
 	}
 }

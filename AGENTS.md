@@ -41,7 +41,7 @@ To listen to a recipe, render it to a WAV outside the song folder:
 
 ## Writing a song as Go code
 
-A song can be written as a Go program instead of `song.txt`. Use the `song` package (`song/`) and put the program in the song folder as `song.go`, with `package main`. See `tracks/track3-go/song.go` for a full example.
+A song can be written as a Go program instead of `song.txt`. Use the `song` package (`song/`) and put the program in the song folder as `song.go`, with `package main`. See `tracks/track3/song.go` for a full example.
 
 Build it with `go run ./cmd/tracker build tracks/my-song`, which runs the program. The program writes its own `song.xm`, so `-o` doesn't apply. Don't write a generator script outside the repo to produce `song.txt`.
 
