@@ -119,7 +119,7 @@ func makeKit(s *song.Song) *kit {
 		}),
 		kick: s.Instrument(song.Instrument{
 			Name: "soft kick",
-			Recipe: recipe.New(2200).Sine(55, 0.72).Sine(110, 0.18).Noise(1800, 0.025).String(),
+			Recipe: recipe.New(2200).Sine(220, 0.72).Sine(440, 0.18).Noise(1800, 0.025).String(),
 			Volume: 52,
 			Pan: 128,
 			Envelope: song.Points(0, 64, 18, 0),
@@ -260,6 +260,20 @@ func buildPattern(s *song.Song, k *kit, level, rotation int, melody [][]hit, ans
 	return p
 }
 
+func makeEnding(s *song.Song, k *kit) *song.Pattern {
+	p := s.Pattern(32)
+	dminor := progression[0]
+	addPads(p, k, 0, dminor, 0x22)
+	p.Hit(0, chBass, dminor.bass, k.bass, song.Vol(0x28))
+	p.Hit(0, chBell, "A-5", k.bell, song.Vol(0x24))
+
+	for _, channel := range []int{chBass, chPadLow, chPadMid, chPadHigh} {
+		p.Hit(16, channel, "###", nil)
+	}
+
+	return p
+}
+
 func main() {
 	s := song.New("Glass Orchard", 11)
 	s.Timing(6, 104)
@@ -275,9 +289,10 @@ func main() {
 	bridge := buildPattern(s, k, 2, 3, hookAnswer, false)
 	finalA := buildPattern(s, k, 4, 0, hook, true)
 	finalB := buildPattern(s, k, 4, 1, hookAnswer, true)
-	outro := buildPattern(s, k, 0, 2, nil, false)
+	outro := buildPattern(s, k, 0, 1, nil, false)
+	ending := makeEnding(s, k)
 
-	s.Play(intro, verseA, verseB, lift, chorusA, chorusB, interlude, verseA, lift, chorusA, chorusB, bridge, finalA, finalB, outro)
+	s.Play(intro, verseA, verseB, lift, chorusA, chorusB, interlude, verseA, lift, chorusA, chorusB, bridge, finalA, finalB, outro, ending)
 
 	if err := s.WriteBeside(); err != nil {
 		log.Fatal(err)
