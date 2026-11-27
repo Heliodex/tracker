@@ -57,7 +57,7 @@ var (
 	bassRecipe = recipe.New(256).Saw(recipe.Note(256, "C-4"), 0.45).Sine(recipe.Note(256, "C-3"), 0.35).String()
 
 	// bell-like pluck, tuned to C-4
-	bellRecipe = recipe.New(2000).Sine(261.34375, 0.5).Sine(783, 0.18).Sine(1306.7, 0.08).String()
+	bellRecipe = recipe.New(2000).Sine(recipe.Note(2000, "C-4"), 0.5).Sine(783, 0.18).Sine(1306.7, 0.08).String()
 
 	// long bright noise crash
 	crashRecipe = recipe.New(8000).Noise(1000, 1).Noise(3000, 0.4).String()
