@@ -42,8 +42,7 @@ type (
 
 	// section describes the layers and intensity of a four-bar pattern
 	section struct {
-		padVol, arpStep, arpVol, pluckStep, pluckVol, bassStep, bassVol int
-		drumStyle, leadVol int
+		padVol, arpStep, arpVol, pluckStep, pluckVol, bassStep, bassVol, drumStyle, leadVol int
 		phrase [][]hit
 		echo, fill bool
 	}
@@ -107,30 +106,109 @@ var (
 
 	// A filtered-noise swell, long enough to run across a whole build without looping
 	riserRecipe = recipe.New(60000).Sixteen().Noise(1500, 0.32).Noise(3500, 0.10).String()
-
 	progression = []chordBar{
 		{
-			name: "F#m9", root: "F#2", fifth: "C#3", octave: "F#3",
+			name: "F#m9",
+			root: "F#2",
+			fifth: "C#3",
+			octave: "F#3",
 			pad: [4]string{"F#3", "A-3", "C#4", "G#4"},
-			arp: [16]string{"F#3", "A-3", "C#4", "G#4", "C#4", "A-3", "F#3", "C#4", "F#3", "A-3", "C#4", "G#4", "A-4", "G#4", "C#4", "A-3"},
+			arp: [16]string{
+				"F#3",
+				"A-3",
+				"C#4",
+				"G#4",
+				"C#4",
+				"A-3",
+				"F#3",
+				"C#4",
+				"F#3",
+				"A-3",
+				"C#4",
+				"G#4",
+				"A-4",
+				"G#4",
+				"C#4",
+				"A-3",
+			},
 			pluck: [8]string{"F#4", "C#5", "A-4", "G#4", "F#4", "C#5", "A-4", "C#5"},
 		},
 		{
-			name: "Dmaj9", root: "D-2", fifth: "A-2", octave: "D-3",
+			name: "Dmaj9",
+			root: "D-2",
+			fifth: "A-2",
+			octave: "D-3",
 			pad: [4]string{"D-3", "F#3", "A-3", "E-4"},
-			arp: [16]string{"D-3", "F#3", "A-3", "E-4", "A-3", "F#3", "D-3", "A-3", "D-3", "F#3", "A-3", "E-4", "F#4", "E-4", "A-3", "F#3"},
+			arp: [16]string{
+				"D-3",
+				"F#3",
+				"A-3",
+				"E-4",
+				"A-3",
+				"F#3",
+				"D-3",
+				"A-3",
+				"D-3",
+				"F#3",
+				"A-3",
+				"E-4",
+				"F#4",
+				"E-4",
+				"A-3",
+				"F#3",
+			},
 			pluck: [8]string{"D-4", "A-4", "F#4", "E-4", "D-4", "A-4", "F#4", "A-4"},
 		},
 		{
-			name: "Aadd9", root: "A-2", fifth: "E-3", octave: "A-3",
+			name: "Aadd9",
+			root: "A-2",
+			fifth: "E-3",
+			octave: "A-3",
 			pad: [4]string{"A-3", "C#4", "E-4", "B-4"},
-			arp: [16]string{"A-3", "C#4", "E-4", "B-4", "E-4", "C#4", "A-3", "E-4", "A-3", "C#4", "E-4", "B-4", "C#5", "B-4", "E-4", "C#4"},
+			arp: [16]string{
+				"A-3",
+				"C#4",
+				"E-4",
+				"B-4",
+				"E-4",
+				"C#4",
+				"A-3",
+				"E-4",
+				"A-3",
+				"C#4",
+				"E-4",
+				"B-4",
+				"C#5",
+				"B-4",
+				"E-4",
+				"C#4",
+			},
 			pluck: [8]string{"A-4", "E-5", "C#5", "B-4", "A-4", "E-5", "C#5", "E-5"},
 		},
 		{
-			name: "Eadd9", root: "E-2", fifth: "B-2", octave: "E-3",
+			name: "Eadd9",
+			root: "E-2",
+			fifth: "B-2",
+			octave: "E-3",
 			pad: [4]string{"E-3", "G#3", "B-3", "F#4"},
-			arp: [16]string{"E-3", "G#3", "B-3", "F#4", "B-3", "G#3", "E-3", "B-3", "E-3", "G#3", "B-3", "F#4", "G#4", "F#4", "B-3", "G#3"},
+			arp: [16]string{
+				"E-3",
+				"G#3",
+				"B-3",
+				"F#4",
+				"B-3",
+				"G#3",
+				"E-3",
+				"B-3",
+				"E-3",
+				"G#3",
+				"B-3",
+				"F#4",
+				"G#4",
+				"F#4",
+				"B-3",
+				"G#3",
+			},
 			pluck: [8]string{"E-4", "B-4", "G#4", "F#4", "E-4", "B-4", "G#4", "B-4"},
 		},
 	}
@@ -140,7 +218,17 @@ var (
 
 	// hookA is the main melody; hookB is its higher, more open answer
 	hookA = [][]hit{
-		{{0, "F#5"}, {2, "A-5"}, {3, "G#5"}, {4, "F#5"}, {6, "E-5"}, {8, "C#5"}, {10, "E-5"}, {12, "F#5"}, {14, "G#5"}},
+		{
+			{0, "F#5"},
+			{2, "A-5"},
+			{3, "G#5"},
+			{4, "F#5"},
+			{6, "E-5"},
+			{8, "C#5"},
+			{10, "E-5"},
+			{12, "F#5"},
+			{14, "G#5"},
+		},
 		{{0, "A-5"}, {2, "F#5"}, {4, "E-5"}, {6, "F#5"}, {8, "A-5"}, {10, "B-5"}, {12, "A-5"}, {14, "F#5"}},
 		{{0, "E-5"}, {2, "G#5"}, {4, "A-5"}, {6, "B-5"}, {8, "C#6"}, {10, "B-5"}, {12, "A-5"}, {14, "E-5"}},
 		{{0, "G#5"}, {2, "B-5"}, {4, "A-5"}, {6, "G#5"}, {8, "F#5"}, {10, "E-5"}, {12, "B-4"}, {14, "G#4"}},
@@ -267,9 +355,7 @@ func (w pattern) drums(b, style int) {
 		w.p.Hit(at(b, 12), chSnare, "C-4", w.k.snare, withVol(0x48)...)
 	}
 
-	openRows := []int{}
-
-	if style == 2 {
+	if openRows := []int{}; style == 2 {
 		openRows = []int{2, 6, 10, 14}
 
 		for _, r := range openRows {
@@ -352,9 +438,7 @@ func (w pattern) melody(b int, phrase []hit, vol int, echo bool) {
 			continue
 		}
 
-		echoRow := h.row + 3
-
-		if echoRow < song.RowsPerBar {
+		if echoRow := h.row + 3; echoRow < song.RowsPerBar {
 			w.p.Hit(at(b, echoRow), chEcho, h.note, w.k.lead, withVol(vol-0x14, song.Pan(0xD0))...)
 		}
 
@@ -402,29 +486,28 @@ func (w pattern) pluck(b int, cb chordBar, step, vol int) {
 	}
 }
 
-// riser swells across the pattern, then stops before the drop
-func (w pattern) riser() {
-	w.p.Hit(0, chFx, "C-4", w.k.riser, withVol(0x18)...)
-	w.p.Hit(rows-1, chFx, "###", nil)
-}
+func breakdown(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
 
-// arrange lays down the shared layers of a section over its progression
-func (w pattern) arrange(sec section, chords []chordBar) {
-	for b, cb := range chords {
-		w.pads(b, cb, sec.padVol)
-		w.arp(b, cb, sec.arpStep, sec.arpVol)
-		w.pluck(b, cb, sec.pluckStep, sec.pluckVol)
-		w.bass(b, cb, sec.bassStep, sec.bassVol)
-		w.drums(b, sec.drumStyle)
+	for b, cb := range progression {
+		w.pads(b, cb, 0x2C)
+		w.arp(b, cb, 2, 0x24)
+		w.pluck(b, cb, 4, 0x20)
+		w.bass(b, cb, 4, 0x2C)
+		w.melody(b, verseLead[b], 0x3C, b >= 2)
 
-		if sec.phrase != nil {
-			w.melody(b, sec.phrase[b], sec.leadVol, sec.echo)
+		if b >= 2 {
+			w.drums(b, 1)
 		}
 	}
 
-	if sec.fill {
-		w.fill(3)
+	w.crash(0, 0x28)
+
+	for i, vol := range []int{0x20, 0x28, 0x30, 0x38} {
+		w.p.Hit(at(3, 12+i), chSnare, "C-4", k.snare, withVol(vol)...)
 	}
+
+	return w.p
 }
 
 func intro(s *song.Song, k *kit) *song.Pattern {
@@ -452,26 +535,174 @@ func intro(s *song.Song, k *kit) *song.Pattern {
 	return w.p
 }
 
-func introTwo(s *song.Song, k *kit) *song.Pattern {
+func outro(s *song.Song, k *kit) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
+
+	for b, cb := range progression {
+		w.pads(b, cb, 0x28)
+		w.arp(b, cb, 2, 0x24)
+		w.pluck(b, cb, 4, 0x24)
+		w.melody(b, verseLead[b], 0x3C, b == 0)
+
+		if b < 2 {
+			w.bass(b, cb, 4, 0x30)
+			w.drums(b, 1)
+		}
+	}
+
+	// End on the home chord and let the pads ring out
+	cb := progression[0]
+
+	w.pads(3, cb, 0x30)
+	w.bass(3, cb, 4, 0x34)
+	w.arp(3, cb, 2, 0x20)
+	w.pluck(3, cb, 4, 0x24)
+	w.melody(3, []hit{{0, "F#5"}, {8, "C#6"}, {12, "F#5"}}, 0x40, false)
+	w.crash(3, 0x38)
+
+	for _, ch := range []int{chLead, chEcho, chArp, chPluck, chBass, chPadRoot, chPadThird, chPadFifth, chPadNinth} {
+		w.p.Hit(rows-2, ch, "###", nil)
+	}
+
+	return w.p
+}
+
+// arrange lays down the shared layers of a section over its progression
+func (w pattern) arrange(sec section, chords []chordBar) {
+	for b, cb := range chords {
+		w.pads(b, cb, sec.padVol)
+		w.arp(b, cb, sec.arpStep, sec.arpVol)
+		w.pluck(b, cb, sec.pluckStep, sec.pluckVol)
+		w.bass(b, cb, sec.bassStep, sec.bassVol)
+		w.drums(b, sec.drumStyle)
+
+		if sec.phrase != nil {
+			w.melody(b, sec.phrase[b], sec.leadVol, sec.echo)
+		}
+	}
+
+	if sec.fill {
+		w.fill(3)
+	}
+}
+
+func bridge(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+
 	w.arrange(section{
-		padVol: 0x24, arpStep: 1, arpVol: 0x24, pluckStep: 2, pluckVol: 0x24,
-		bassStep: 2, bassVol: 0x30, drumStyle: 1, leadVol: 0x38, phrase: verseLead,
-	}, progression)
-	w.crash(0, 0x2C)
+		padVol: 0x2C,
+		arpStep: 1,
+		arpVol: 0x30,
+		pluckStep: 4,
+		pluckVol: 0x2C,
+		bassStep: 2,
+		bassVol: 0x34,
+		drumStyle: 2,
+		leadVol: 0x44,
+		phrase: bridgeLead,
+		echo: true,
+		fill: true,
+	}, bridgeProgression)
+	w.crash(0, 0x38)
+	w.crash(2, 0x2C)
+
+	return w.p
+}
+
+func drop(s *song.Song, k *kit, answer, final bool) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+	phrase := hookA
+
+	if answer {
+		phrase = hookB
+	}
+
+	sec := section{
+		padVol: 0x2C,
+		arpStep: 1,
+		arpVol: 0x30,
+		pluckStep: 2,
+		pluckVol: 0x30,
+		bassStep: 1,
+		bassVol: 0x3C,
+		drumStyle: 2,
+		leadVol: 0x48,
+		phrase: phrase,
+		echo: true,
+		fill: true,
+	}
+
+	if answer {
+		sec.pluckStep = 4
+		sec.pluckVol = 0x2C
+	}
+
+	if final {
+		sec.padVol = 0x30
+		sec.arpVol = 0x34
+		sec.bassVol = 0x40
+		sec.leadVol = 0x4C
+	}
+
+	w.arrange(sec, progression)
+	w.crash(0, 0x38)
+
+	// Syncopated kicks give each drop a different answer before the fill
+	for b, r := range []int{14, 10, 14} {
+		w.p.Hit(at(b+1, r), chKick, "C-2", k.kick, withVol(0x30)...)
+	}
+
+	if !answer {
+		w.crash(2, 0x28)
+	}
 
 	return w.p
 }
 
 func groove(s *song.Song, k *kit) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
+
 	w.arrange(section{
-		padVol: 0x24, arpStep: 2, arpVol: 0x28, pluckStep: 2, pluckVol: 0x28,
-		bassStep: 2, bassVol: 0x34, drumStyle: 2, leadVol: 0x3C, phrase: verseLead,
+		padVol: 0x24,
+		arpStep: 2,
+		arpVol: 0x28,
+		pluckStep: 2,
+		pluckVol: 0x28,
+		bassStep: 2,
+		bassVol: 0x34,
+		drumStyle: 2,
+		leadVol: 0x3C,
+		phrase: verseLead,
 	}, progression)
 	w.crash(0, 0x2C)
 
 	return w.p
+}
+
+func introTwo(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+
+	w.arrange(section{
+		padVol: 0x24,
+		arpStep: 1,
+		arpVol: 0x24,
+		pluckStep: 2,
+		pluckVol: 0x24,
+		bassStep: 2,
+		bassVol: 0x30,
+		drumStyle: 1,
+		leadVol: 0x38,
+		phrase: verseLead,
+	}, progression)
+	w.crash(0, 0x2C)
+
+	return w.p
+}
+
+// riser swells across the pattern, then stops before the drop
+func (w pattern) riser() {
+	w.p.Hit(0, chFx, "C-4", w.k.riser, withVol(0x18)...)
+	w.p.Hit(rows-1, chFx, "###", nil)
 }
 
 func build(s *song.Song, k *kit, final bool) *song.Pattern {
@@ -510,115 +741,6 @@ func build(s *song.Song, k *kit, final bool) *song.Pattern {
 	return w.p
 }
 
-func drop(s *song.Song, k *kit, answer, final bool) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-	phrase := hookA
-
-	if answer {
-		phrase = hookB
-	}
-
-	sec := section{
-		padVol: 0x2C, arpStep: 1, arpVol: 0x30, pluckStep: 2, pluckVol: 0x30,
-		bassStep: 1, bassVol: 0x3C, drumStyle: 2, leadVol: 0x48, phrase: phrase,
-		echo: true, fill: true,
-	}
-
-	if answer {
-		sec.pluckStep = 4
-		sec.pluckVol = 0x2C
-	}
-
-	if final {
-		sec.padVol = 0x30
-		sec.arpVol = 0x34
-		sec.bassVol = 0x40
-		sec.leadVol = 0x4C
-	}
-
-	w.arrange(sec, progression)
-	w.crash(0, 0x38)
-
-	// Syncopated kicks give each drop a different answer before the fill
-	for b, r := range []int{14, 10, 14} {
-		w.p.Hit(at(b+1, r), chKick, "C-2", k.kick, withVol(0x30)...)
-	}
-
-	if !answer {
-		w.crash(2, 0x28)
-	}
-
-	return w.p
-}
-
-func breakdown(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	for b, cb := range progression {
-		w.pads(b, cb, 0x2C)
-		w.arp(b, cb, 2, 0x24)
-		w.pluck(b, cb, 4, 0x20)
-		w.bass(b, cb, 4, 0x2C)
-		w.melody(b, verseLead[b], 0x3C, b >= 2)
-
-		if b >= 2 {
-			w.drums(b, 1)
-		}
-	}
-
-	w.crash(0, 0x28)
-
-	for i, vol := range []int{0x20, 0x28, 0x30, 0x38} {
-		w.p.Hit(at(3, 12+i), chSnare, "C-4", k.snare, withVol(vol)...)
-	}
-
-	return w.p
-}
-
-func bridge(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-	w.arrange(section{
-		padVol: 0x2C, arpStep: 1, arpVol: 0x30, pluckStep: 4, pluckVol: 0x2C,
-		bassStep: 2, bassVol: 0x34, drumStyle: 2, leadVol: 0x44, phrase: bridgeLead,
-		echo: true, fill: true,
-	}, bridgeProgression)
-	w.crash(0, 0x38)
-	w.crash(2, 0x2C)
-
-	return w.p
-}
-
-func outro(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	for b, cb := range progression {
-		w.pads(b, cb, 0x28)
-		w.arp(b, cb, 2, 0x24)
-		w.pluck(b, cb, 4, 0x24)
-		w.melody(b, verseLead[b], 0x3C, b == 0)
-
-		if b < 2 {
-			w.bass(b, cb, 4, 0x30)
-			w.drums(b, 1)
-		}
-	}
-
-	// End on the home chord and let the pads ring out
-	cb := progression[0]
-	w.pads(3, cb, 0x30)
-	w.bass(3, cb, 4, 0x34)
-	w.arp(3, cb, 2, 0x20)
-	w.pluck(3, cb, 4, 0x24)
-	w.melody(3, []hit{{0, "F#5"}, {8, "C#6"}, {12, "F#5"}}, 0x40, false)
-	w.crash(3, 0x38)
-
-	for _, ch := range []int{chLead, chEcho, chArp, chPluck, chBass, chPadRoot, chPadThird, chPadFifth, chPadNinth} {
-		w.p.Hit(rows-2, ch, "###", nil)
-	}
-
-	return w.p
-}
-
 func main() {
 	s := song.New("afterglow", 14)
 
@@ -632,8 +754,14 @@ func main() {
 			Volume: 34,
 			Pan: 96,
 			Envelope: []song.Point{
-				{X: 0, Y: 0},
-				{X: 1, Y: 64},
+				{
+					X: 0,
+					Y: 0,
+				},
+				{
+					X: 1,
+					Y: 64,
+				},
 			},
 			Fadeout: 512,
 		}),
@@ -643,8 +771,14 @@ func main() {
 			Volume: 34,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 5, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 5,
+					Y: 0,
+				},
 			},
 		}),
 		pluck: s.Instrument(song.Instrument{
@@ -653,8 +787,14 @@ func main() {
 			Volume: 32,
 			Pan: 176,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 10, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 10,
+					Y: 0,
+				},
 			},
 			Fadeout: 512,
 		}),
@@ -665,8 +805,14 @@ func main() {
 			Volume: 44,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 0},
-				{X: 2, Y: 64},
+				{
+					X: 0,
+					Y: 0,
+				},
+				{
+					X: 2,
+					Y: 64,
+				},
 			},
 		}),
 		pad: s.Instrument(song.Instrument{
@@ -676,8 +822,14 @@ func main() {
 			Volume: 26,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 0},
-				{X: 20, Y: 64},
+				{
+					X: 0,
+					Y: 0,
+				},
+				{
+					X: 20,
+					Y: 64,
+				},
 			},
 			Fadeout: 1024,
 		}),
@@ -687,8 +839,14 @@ func main() {
 			Volume: 58,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 14, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 14,
+					Y: 0,
+				},
 			},
 		}),
 		snare: s.Instrument(song.Instrument{
@@ -697,8 +855,14 @@ func main() {
 			Volume: 42,
 			Pan: 136,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 16, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 16,
+					Y: 0,
+				},
 			},
 		}),
 		hat: s.Instrument(song.Instrument{
@@ -707,8 +871,14 @@ func main() {
 			Volume: 30,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 3, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 3,
+					Y: 0,
+				},
 			},
 		}),
 		openHat: s.Instrument(song.Instrument{
@@ -717,8 +887,14 @@ func main() {
 			Volume: 26,
 			Pan: 208,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 14, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 14,
+					Y: 0,
+				},
 			},
 		}),
 		crash: s.Instrument(song.Instrument{
@@ -727,8 +903,14 @@ func main() {
 			Volume: 26,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 64},
-				{X: 64, Y: 0},
+				{
+					X: 0,
+					Y: 64,
+				},
+				{
+					X: 64,
+					Y: 0,
+				},
 			},
 		}),
 		riser: s.Instrument(song.Instrument{
@@ -737,13 +919,18 @@ func main() {
 			Volume: 22,
 			Pan: 128,
 			Envelope: []song.Point{
-				{X: 0, Y: 0},
-				{X: 384, Y: 64},
+				{
+					X: 0,
+					Y: 0,
+				},
+				{
+					X: 384,
+					Y: 64,
+				},
 			},
 			Fadeout: 256,
 		}),
 	}
-
 	introP := intro(s, k)
 	introTwoP := introTwo(s, k)
 	grooveP := groove(s, k)
@@ -756,12 +943,7 @@ func main() {
 	finalDropP := drop(s, k, false, true)
 	outroP := outro(s, k)
 
-	s.Play(
-		introP, introTwoP, grooveP, buildP,
-		dropP, answerP, breakP, buildP,
-		dropP, answerP, bridgeP, finalBuildP,
-		finalDropP, finalDropP, answerP, finalDropP, outroP,
-	)
+	s.Play(introP, introTwoP, grooveP, buildP, dropP, answerP, breakP, buildP, dropP, answerP, bridgeP, finalBuildP, finalDropP, finalDropP, answerP, finalDropP, outroP)
 
 	// write next to this file, wherever the program is run from
 	_, src, _, _ := runtime.Caller(0)
