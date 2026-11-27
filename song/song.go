@@ -132,7 +132,6 @@ func (s *Song) Instrument(ins Instrument) *Instrument {
 	switch {
 	case in.Recipe != "" && in.WAV != nil:
 		s.fail("instrument %q: set Recipe or WAV, not both", in.Name)
-
 	case in.WAV != nil:
 		pcm, sixteen, err := wav.Decode(in.WAV)
 		if err != nil {
@@ -142,10 +141,10 @@ func (s *Song) Instrument(ins Instrument) *Instrument {
 
 		in.pcm, in.sixteen = pcm, sixteen
 		in.frames = len(pcm)
+
 		if sixteen {
 			in.frames /= 2
 		}
-
 	default:
 		rc, err := recipe.Parse(strings.NewReader(in.Recipe))
 		if err != nil {
@@ -222,8 +221,8 @@ func (ins *Instrument) toText() (loadtext.Instrument, error) {
 	sample := loadtext.Sample{
 		Volume: uint8(volume),
 		Panning: uint8(pan),
-		Data: ins.pcm,
 		Sixteen: ins.sixteen,
+		Data: ins.pcm,
 	}
 
 	copy(sample.Name[:], ins.Name)

@@ -46,6 +46,18 @@ const (
 const rows = 64
 
 var (
+	hook = [][]hit{
+		{{0, "A-4"}, {3, "D-5"}, {6, "F-5"}, {10, "A-5"}, {14, "F-5"}},
+		{{0, "F-5"}, {4, "D-5"}, {7, "A-4"}, {10, "D-5"}, {14, "F-5"}},
+		{{0, "A-4"}, {4, "C-5"}, {7, "F-5"}, {11, "G-5"}, {14, "F-5"}},
+		{{0, "E-5"}, {3, "D-5"}, {6, "C-5"}, {10, "G-4"}, {14, "A-4"}},
+	}
+	hookAnswer = [][]hit{
+		{{0, "D-5"}, {4, "F-5"}, {8, "A-5"}, {12, "F-5"}},
+		{{0, "A-4"}, {4, "D-5"}, {8, "F-5"}, {12, "A-5"}},
+		{{0, "C-5"}, {4, "A-4"}, {8, "G-4"}, {12, "A-4"}},
+		{{0, "G-4"}, {4, "C-5"}, {8, "E-5"}, {12, "D-5"}},
+	}
 	progression = []chord{
 		{
 			bass: "D-2",
@@ -72,26 +84,125 @@ var (
 			arp: [8]string{"C-4", "G-4", "D-5", "E-5", "G-4", "E-4", "D-5", "G-4"},
 		},
 	}
-
 	verse = [][]hit{
 		{{0, "A-4"}, {6, "F-4"}, {9, "D-5"}, {14, "C-5"}},
 		{{0, "A-4"}, {4, "F-4"}, {10, "D-5"}, {13, "F-5"}},
 		{{2, "C-5"}, {6, "A-4"}, {11, "G-4"}, {14, "A-4"}},
 		{{0, "G-4"}, {5, "E-4"}, {9, "D-5"}, {14, "C-5"}},
 	}
-	hook = [][]hit{
-		{{0, "A-4"}, {3, "D-5"}, {6, "F-5"}, {10, "A-5"}, {14, "F-5"}},
-		{{0, "F-5"}, {4, "D-5"}, {7, "A-4"}, {10, "D-5"}, {14, "F-5"}},
-		{{0, "A-4"}, {4, "C-5"}, {7, "F-5"}, {11, "G-5"}, {14, "F-5"}},
-		{{0, "E-5"}, {3, "D-5"}, {6, "C-5"}, {10, "G-4"}, {14, "A-4"}},
-	}
-	hookAnswer = [][]hit{
-		{{0, "D-5"}, {4, "F-5"}, {8, "A-5"}, {12, "F-5"}},
-		{{0, "A-4"}, {4, "D-5"}, {8, "F-5"}, {12, "A-5"}},
-		{{0, "C-5"}, {4, "A-4"}, {8, "G-4"}, {12, "A-4"}},
-		{{0, "G-4"}, {4, "C-5"}, {8, "E-5"}, {12, "D-5"}},
-	}
 )
+
+func addDrums(p *song.Pattern, k *kit, bar, level int) {
+	base := song.At(bar, 0)
+
+	p.Hit(base, chKick, "C-2", k.kick, song.Vol(0x38+level*2))
+	p.Hit(base+7, chKick, "C-2", k.kick, song.Vol(0x26+level))
+	p.Hit(base+10, chKick, "C-2", k.kick, song.Vol(0x30+level))
+	p.Hit(base+4, chSnare, "C-4", k.snare, song.Vol(0x30+level*2))
+	p.Hit(base+12, chSnare, "C-4", k.snare, song.Vol(0x34+level*2))
+
+	for _, row := range []int{2, 6, 10, 14} {
+		volume := 0x22 + level
+
+		if row == 6 || row == 14 {
+			volume += 4
+		}
+
+		p.Hit(base+row, chHat, "C-5", k.hat, song.Vol(volume))
+	}
+
+	if level >= 2 {
+		p.Hit(base+6, chOpenHat, "C-5", k.openHat, song.Vol(0x24+level))
+		p.Hit(base+14, chOpenHat, "C-5", k.openHat, song.Vol(0x28+level))
+	}
+
+	if level >= 3 && bar%2 == 1 {
+		p.Hit(base+15, chSnare, "C-4", k.snare, song.Vol(0x20+level))
+	}
+}
+
+func addPads(p *song.Pattern, k *kit, bar int, c chord, volume int) {
+	channels := [3]int{chPadLow, chPadMid, chPadHigh}
+	pans := [3]int{0x58, 0x80, 0xA8}
+
+	for i, note := range c.pad {
+		p.Hit(song.At(bar, 0), channels[i], note, k.pad, song.Vol(volume), song.Pan(pans[i]))
+	}
+}
+
+func buildPattern(s *song.Song, k *kit, level, rotation int, melody [][]hit, answer bool) *song.Pattern {
+	p := s.Pattern(rows)
+
+	for bar := range 4 {
+		c := progression[(bar+rotation)%len(progression)]
+		padVol := []int{0x1C, 0x24, 0x28, 0x2C, 0x30}[level]
+
+		addPads(p, k, bar, c, padVol)
+
+		if level >= 1 {
+			p.Hit(song.At(bar, 0), chBass, c.bass, k.bass, song.Vol(0x30+level*2))
+
+			if level >= 2 {
+				p.Hit(song.At(bar, 8), chBass, c.fifth, k.bass, song.Vol(0x2C+level*2))
+			}
+		}
+
+		if level >= 2 {
+			step := 2
+			count := len(c.arp)
+
+			if level == 2 {
+				step = 4
+				count = 4
+			}
+
+			for i := range count {
+				p.Hit(song.At(bar, i*step), chPluck, c.arp[i*len(c.arp)/count], k.pluck, song.Vol(0x24+level*2))
+			}
+		}
+
+		if melody != nil {
+			phrase := melody[(bar+rotation)%len(melody)]
+
+			for _, note := range phrase {
+				p.Hit(song.At(bar, note.row), chLead, note.note, k.lead, song.Vol(0x30+level*3))
+
+				if answer && level >= 3 && note.row%2 == 0 {
+					p.Hit(song.At(bar, note.row), chBell, note.note, k.bell, song.Vol(0x24+level))
+				}
+			}
+		}
+
+		if level >= 1 {
+			addDrums(p, k, bar, level)
+		}
+
+		if level == 0 && bar%2 == 0 {
+			p.Hit(song.At(bar, 12), chBell, c.arp[3], k.bell, song.Vol(0x28))
+		}
+
+		if level >= 2 && bar == 0 {
+			p.Hit(song.At(bar, 0), chBell, "C-5", k.crash, song.Vol(0x2C+level))
+		}
+	}
+
+	return p
+}
+
+func makeEnding(s *song.Song, k *kit) *song.Pattern {
+	p := s.Pattern(32)
+	dminor := progression[0]
+
+	addPads(p, k, 0, dminor, 0x22)
+	p.Hit(0, chBass, dminor.bass, k.bass, song.Vol(0x28))
+	p.Hit(0, chBell, "A-5", k.bell, song.Vol(0x24))
+
+	for _, channel := range []int{chBass, chPadLow, chPadMid, chPadHigh} {
+		p.Hit(16, channel, "###", nil)
+	}
+
+	return p
+}
 
 func makeKit(s *song.Song) *kit {
 	return &kit{
@@ -173,114 +284,12 @@ func makeKit(s *song.Song) *kit {
 	}
 }
 
-func addPads(p *song.Pattern, k *kit, bar int, c chord, volume int) {
-	channels := [3]int{chPadLow, chPadMid, chPadHigh}
-	pans := [3]int{0x58, 0x80, 0xA8}
-
-	for i, note := range c.pad {
-		p.Hit(song.At(bar, 0), channels[i], note, k.pad, song.Vol(volume), song.Pan(pans[i]))
-	}
-}
-
-func addDrums(p *song.Pattern, k *kit, bar, level int) {
-	base := song.At(bar, 0)
-	p.Hit(base, chKick, "C-2", k.kick, song.Vol(0x38+level*2))
-	p.Hit(base+7, chKick, "C-2", k.kick, song.Vol(0x26+level))
-	p.Hit(base+10, chKick, "C-2", k.kick, song.Vol(0x30+level))
-	p.Hit(base+4, chSnare, "C-4", k.snare, song.Vol(0x30+level*2))
-	p.Hit(base+12, chSnare, "C-4", k.snare, song.Vol(0x34+level*2))
-
-	for _, row := range []int{2, 6, 10, 14} {
-		volume := 0x22 + level
-		if row == 6 || row == 14 {
-			volume += 4
-		}
-
-		p.Hit(base+row, chHat, "C-5", k.hat, song.Vol(volume))
-	}
-
-	if level >= 2 {
-		p.Hit(base+6, chOpenHat, "C-5", k.openHat, song.Vol(0x24+level))
-		p.Hit(base+14, chOpenHat, "C-5", k.openHat, song.Vol(0x28+level))
-	}
-
-	if level >= 3 && bar%2 == 1 {
-		p.Hit(base+15, chSnare, "C-4", k.snare, song.Vol(0x20+level))
-	}
-}
-
-func buildPattern(s *song.Song, k *kit, level, rotation int, melody [][]hit, answer bool) *song.Pattern {
-	p := s.Pattern(rows)
-	for bar := 0; bar < 4; bar++ {
-		c := progression[(bar+rotation)%len(progression)]
-		padVol := []int{0x1C, 0x24, 0x28, 0x2C, 0x30}[level]
-		addPads(p, k, bar, c, padVol)
-
-		if level >= 1 {
-			p.Hit(song.At(bar, 0), chBass, c.bass, k.bass, song.Vol(0x30+level*2))
-			if level >= 2 {
-				p.Hit(song.At(bar, 8), chBass, c.fifth, k.bass, song.Vol(0x2C+level*2))
-			}
-		}
-
-		if level >= 2 {
-			step := 2
-			count := len(c.arp)
-			if level == 2 {
-				step = 4
-				count = 4
-			}
-
-			for i := 0; i < count; i++ {
-				p.Hit(song.At(bar, i*step), chPluck, c.arp[i*len(c.arp)/count], k.pluck, song.Vol(0x24+level*2))
-			}
-		}
-
-		if melody != nil {
-			phrase := melody[(bar+rotation)%len(melody)]
-			for _, note := range phrase {
-				p.Hit(song.At(bar, note.row), chLead, note.note, k.lead, song.Vol(0x30+level*3))
-				if answer && level >= 3 && note.row%2 == 0 {
-					p.Hit(song.At(bar, note.row), chBell, note.note, k.bell, song.Vol(0x24+level))
-				}
-			}
-		}
-
-		if level >= 1 {
-			addDrums(p, k, bar, level)
-		}
-
-		if level == 0 && bar%2 == 0 {
-			p.Hit(song.At(bar, 12), chBell, c.arp[3], k.bell, song.Vol(0x28))
-		}
-
-		if level >= 2 && bar == 0 {
-			p.Hit(song.At(bar, 0), chBell, "C-5", k.crash, song.Vol(0x2C+level))
-		}
-	}
-
-	return p
-}
-
-func makeEnding(s *song.Song, k *kit) *song.Pattern {
-	p := s.Pattern(32)
-	dminor := progression[0]
-	addPads(p, k, 0, dminor, 0x22)
-	p.Hit(0, chBass, dminor.bass, k.bass, song.Vol(0x28))
-	p.Hit(0, chBell, "A-5", k.bell, song.Vol(0x24))
-
-	for _, channel := range []int{chBass, chPadLow, chPadMid, chPadHigh} {
-		p.Hit(16, channel, "###", nil)
-	}
-
-	return p
-}
-
 func main() {
 	s := song.New("glass orchard", 11)
-	s.Timing(6, 104)
-	k := makeKit(s)
 
+	s.Timing(6, 104)
+
+	k := makeKit(s)
 	intro := buildPattern(s, k, 0, 0, nil, false)
 	verseA := buildPattern(s, k, 1, 0, verse, false)
 	verseB := buildPattern(s, k, 2, 1, verse, false)

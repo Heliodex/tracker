@@ -21,6 +21,7 @@ import (
 
 func run(args []string, stdout, stderr *os.File) error {
 	fs := flag.NewFlagSet("it2xm", flag.ContinueOnError)
+
 	fs.SetOutput(stderr)
 
 	out := fs.String("o", "", "output .xm path")
