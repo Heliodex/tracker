@@ -187,8 +187,8 @@ func formantGain(hz float64) float64 {
 	for _, f := range []struct {
 		centre, width, gain float64
 	}{
-		{700, 380, 1.25},
-		{1220, 520, 0.85},
+		{700, 380, 0.80},
+		{1220, 520, 0.55},
 		{2600, 950, 0.45},
 	} {
 		g += f.gain * math.Exp(-math.Pow((hz-f.centre)/f.width, 2))
@@ -251,15 +251,18 @@ func bassSample(frames int) []float64 {
 	out := make([]float64, frames)
 	c := math.Round(base * float64(frames) / rate)
 
-	for h := 1; h <= 16; h++ {
-		amp := 1 / math.Pow(float64(h), 1.12)
+	for h := 1; h <= 10; h++ {
+		amp := 1 / math.Pow(float64(h), 2.2)
 
 		addWave(out, c*float64(h), amp, 0)
-		addWave(out, c*float64(h)+1, amp*0.72, 0.25)
+
+		if h <= 4 {
+			addWave(out, c*float64(h)+1, amp*0.55, 0.25)
+		}
 	}
 
-	addWave(out, math.Round(c/2), 0.55, 0)
-	addWave(out, math.Round(c/4), 0.12, 0)
+	addWave(out, math.Round(c/2), 0.70, 0)
+	addWave(out, math.Round(c/4), 0.18, 0)
 
 	return normalise(out)
 }
@@ -325,10 +328,10 @@ func breakSample(kick, snare, hat, open []float64) []float64 {
 	}
 
 	for s := range 16 {
-		gain := 0.16
+		gain := 0.26
 
 		if s%4 == 0 {
-			gain = 0.30
+			gain = 0.46
 		}
 
 		mix(pos(s), hat, gain)
@@ -358,10 +361,21 @@ func breakSample(kick, snare, hat, open []float64) []float64 {
 		mix(pos(h.step), snare, h.gain)
 	}
 
-	mix(pos(6), open, 0.25)
-	mix(pos(14), open, 0.22)
+	mix(pos(6), open, 0.38)
+	mix(pos(14), open, 0.34)
 
 	return normalise(fadeOut(out, 160))
+}
+
+// brighten mixes a looping air sample into a pad, adding top end without adding mud
+func brighten(base, air []float64, amount float64) []float64 {
+	out := append([]float64(nil), base...)
+
+	for i := range out {
+		out[i] += air[i%len(air)] * amount
+	}
+
+	return normalise(out)
 }
 
 // chopSample lifts a short snare slice out of the break, for the pitched chop line
@@ -400,6 +414,8 @@ func leadSample(frames int) []float64 {
 	addWave(out, c*3, 0.18, 0.1)
 	addWave(out, c*4, 0.05, 0)
 	addWave(out, c*5, 0.08, 0.3)
+	addWave(out, c*8, 0.04, 0)
+	addWave(out, c*9, 0.03, 0.2)
 
 	return normalise(out)
 }
@@ -462,6 +478,7 @@ func (w pattern) breakBeat(b, vol int) {
 // choir adds a long formant voice above the pads
 func (w pattern) choir(b int, c chord, vol int) {
 	w.p.Hit(at(b, 0), chBreath, c.pad[1], w.k.choir, song.VolOpts(vol, song.Pan(0x70))...)
+	w.p.Hit(at(b, 8), chBreath, "###", nil)
 }
 
 // chops plays a pitched slice of the break. The first note sets the pan, the rest slide into place.
@@ -524,7 +541,7 @@ func (w pattern) drums(b, style int) {
 		step = 2
 	}
 
-	w.hats(b, step, 0x24, 0x34)
+	w.hats(b, step, 0x30, 0x44)
 
 	if style >= 2 {
 		for i, r := range []int{1, 3, 5, 7, 9, 11, 13, 15} {
@@ -534,11 +551,11 @@ func (w pattern) drums(b, style int) {
 				pan = 0xA8
 			}
 
-			w.p.Hit(at(b, r), chHat, "C-4", w.k.hat, song.VolOpts(0x18, song.Pan(pan))...)
+			w.p.Hit(at(b, r), chHat, "C-4", w.k.hat, song.VolOpts(0x24, song.Pan(pan))...)
 		}
 
-		w.p.Hit(at(b, 6), chOpen, "C-4", w.k.open, song.VolOpts(0x28, song.Pan(0x60))...)
-		w.p.Hit(at(b, 14), chOpen, "C-4", w.k.open, song.VolOpts(0x30, song.Pan(0xA0))...)
+		w.p.Hit(at(b, 6), chOpen, "C-4", w.k.open, song.VolOpts(0x38, song.Pan(0x60))...)
+		w.p.Hit(at(b, 14), chOpen, "C-4", w.k.open, song.VolOpts(0x40, song.Pan(0xA0))...)
 	}
 
 	kicks := []int{0}
@@ -587,6 +604,7 @@ func (w pattern) pads(b int, c chord, vol int) {
 
 	for i, note := range c.pad {
 		w.p.Hit(at(b, 0), chPadLo+i, note, w.k.pad, song.VolOpts(vol, song.Pan(pans[i]))...)
+		w.p.Hit(at(b, 8), chPadLo+i, "###", nil)
 	}
 }
 
@@ -600,19 +618,26 @@ func outro(s *song.Song, k *kit) *song.Pattern {
 	for b := range 3 {
 		c := barChord(verse, b)
 
-		w.pads(b, c, 0x34)
-		w.choir(b, c, 0x30)
+		w.pads(b, c, 0x1e)
+		w.choir(b, c, 0x1a)
 
 		if b == 0 {
 			w.fx(b, 0, "C-4", k.crash, 0x40)
-			w.bass(b, c, 0, 0x38)
+			w.bass(b, c, 0, 0x2a)
 		}
 	}
 
-	w.pads(last, cm, 0x3C)
-	w.choir(last, cm, 0x3A)
-	w.bass(last, cm, 0, 0x40)
-	w.bellLine(last, cm.arp, 2, 0x30)
+	w.pads(last, cm, 0x1e)
+	w.choir(last, cm, 0x1c)
+	w.bass(last, cm, 0, 0x28)
+	w.bellLine(last, cm.arp, 2, 0x26)
+
+	// ease the last chord and the vinyl down over the final rows
+	for r := 10; r < 15; r++ {
+		for _, ch := range []int{chPadLo, chPadMid, chPadHi, chBreath, chBass, chAir, chVinyl} {
+			w.p.Hit(at(last, r), ch, "...", nil, effect(0x0A, 0x01))
+		}
+	}
 
 	for _, ch := range []int{
 		chLead,
@@ -628,6 +653,8 @@ func outro(s *song.Song, k *kit) *song.Pattern {
 		chBreak,
 		chAir,
 		chBreath,
+		chVinyl,
+		chFX,
 	} {
 		w.p.Hit(rows/2-1, ch, "###", nil)
 	}
@@ -649,29 +676,29 @@ func (w pattern) roll(b, start, end, fromVol, toVol int) {
 func intro(s *song.Song, k *kit) *song.Pattern {
 	w := pattern{s.Pattern(rows), k}
 
-	w.p.Hit(0, chVinyl, "C-4", k.vinyl, song.VolOpts(0x10)...)
+	w.p.Hit(0, chVinyl, "C-4", k.vinyl, song.VolOpts(0x28)...)
 
 	for b := range rows / song.RowsPerBar {
 		c := barChord(verse, b)
 
-		w.pads(b, c, 0x30)
+		w.pads(b, c, 0x1a)
 
 		if b%2 == 0 {
-			w.choir(b, c, 0x2C)
+			w.choir(b, c, 0x16)
 		}
 
 		if b >= 2 {
-			w.air(b, c.pad[2], 0x18)
+			w.air(b, c.pad[2], 0x24)
 		}
 
 		if b >= 4 {
-			w.bellLine(b, c.arp, 2, 0x24)
+			w.bellLine(b, c.arp, 2, 0x1e)
 		}
 	}
 
-	w.breakBeat(6, 0x1E)
-	w.fx(7, 0, "C-4", k.riser, 0x40)
-	w.roll(7, 8, 16, 0x16, 0x40)
+	w.breakBeat(6, 0x18)
+	w.fx(7, 0, "C-4", k.riser, 0x30)
+	w.roll(7, 8, 16, 0x14, 0x30)
 
 	return w.p
 }
@@ -690,9 +717,9 @@ func build(s *song.Song, k *kit) *song.Pattern {
 	for b := range rows / song.RowsPerBar {
 		c := barChord(turn, b)
 
-		w.pads(b, c, 0x34)
-		w.choir(b, c, 0x2E)
-		w.bass(b, c, 1, 0x40)
+		w.pads(b, c, 0x24)
+		w.choir(b, c, 0x1e)
+		w.bass(b, c, 1, 0x32)
 
 		style := 1
 
@@ -707,7 +734,7 @@ func build(s *song.Song, k *kit) *song.Pattern {
 		w.drums(b, style)
 
 		if b >= 4 {
-			w.chops(b, c.arp, 0x30, 0x60, 0x18, chChopL)
+			w.chops(b, c.arp, 0x40, 0x60, 0x18, chChopL)
 		}
 
 		if b >= 6 {
@@ -724,36 +751,6 @@ func build(s *song.Song, k *kit) *song.Pattern {
 // voxStab drops a short vocal chord on an offbeat
 func (w pattern) voxStab(b, row int, note string, vol, arp int) {
 	w.p.Hit(at(b, row), chVox, note, w.k.vox, song.VolOpts(vol, effect(0x00, arp))...)
-}
-
-// breakdown strips the drums away and lets the voices carry the turn
-func breakdown(s *song.Song, k *kit) *song.Pattern {
-	w := pattern{s.Pattern(rows), k}
-
-	for b := range rows / song.RowsPerBar {
-		c := barChord(turn, b)
-
-		w.pads(b, c, 0x30)
-		w.choir(b, c, 0x34)
-		w.air(b, c.pad[2], 0x1C)
-
-		if b < 2 {
-			w.bass(b, c, 0, 0x32)
-		}
-
-		if b >= 2 {
-			w.bellLine(b, c.arp, 2, 0x2A)
-		}
-
-		if b >= 4 {
-			w.voxStab(b, 8, c.pad[1], 0x30, arpType(c))
-		}
-	}
-
-	w.fx(7, 0, "C-5", k.riser, 0x40)
-	w.roll(7, 12, 16, 0x16, 0x30)
-
-	return w.p
 }
 
 // reverseSamples returns the buffer reversed
@@ -797,7 +794,7 @@ func crashSample(sec float64, seed uint64) []float64 {
 		t := float64(i) / rate
 		out[i] = hp[i] * math.Exp(-t*2.6) * 0.85
 
-		for _, hz := range []float64{3150, 4680, 7020, 8980} {
+		for _, hz := range []float64{3150, 3480, 3760, 4050} {
 			out[i] += 0.05 * math.Sin(2*math.Pi*hz*t) * math.Exp(-t*3.2)
 		}
 	}
@@ -817,7 +814,7 @@ func hatSample(seed uint64) []float64 {
 		raw[i] = r.next()
 	}
 
-	hp := highpass(raw)
+	hp := highpass(highpass(raw))
 	out := make([]float64, n)
 
 	for i := range out {
@@ -862,7 +859,7 @@ func openHatSample(seed uint64) []float64 {
 		raw[i] = r.next()
 	}
 
-	hp := highpass(raw)
+	hp := highpass(highpass(raw))
 	out := make([]float64, n)
 
 	for i := range out {
@@ -886,9 +883,9 @@ func airSample(frames int, seed uint64) []float64 {
 	}
 
 	for range 320 {
-		hz := 700 + r.next01()*6300
+		hz := 500 + r.next01()*3450
 		cycles := math.Max(1, math.Round(hz*float64(frames)/rate))
-		amp := (0.03 + 0.09*r.next01()) * (0.25 + math.Exp(-math.Pow((hz-2600)/2200, 2)))
+		amp := (0.03 + 0.09*r.next01()) * (0.25 + math.Exp(-math.Pow((hz-2800)/1600, 2)))
 
 		addWave(out, cycles, amp, r.next01())
 	}
@@ -904,11 +901,17 @@ func padSample(frames int, formant bool, seed uint64) []float64 {
 	}
 	c := math.Round(base * float64(frames) / rate)
 
-	for h := 1; h <= 24; h++ {
-		amp := 1 / math.Pow(float64(h), 1.35)
+	for h := 1; h <= 15; h++ {
+		hz := base * float64(h)
+		amp := 1 / math.Pow(float64(h), 1.05)
 
 		if formant {
-			amp *= formantGain(base * float64(h))
+			amp *= formantGain(hz)
+		} else if hz > 300 && hz < 1600 {
+			// scoop the muddy lower mids, leaving the fundamental and the air above
+			amp *= 0.30
+		} else if hz > 2200 {
+			amp *= 2.2
 		}
 
 		addWave(out, c*float64(h), amp, r.next01())
@@ -989,6 +992,36 @@ func upOctave(note string) string {
 	return types.Note(int(n) + 12).String()
 }
 
+// breakdown strips the drums away and lets the voices carry the turn
+func breakdown(s *song.Song, k *kit) *song.Pattern {
+	w := pattern{s.Pattern(rows), k}
+
+	for b := range rows / song.RowsPerBar {
+		c := barChord(turn, b)
+
+		w.pads(b, c, 0x1a)
+		w.choir(b, c, 0x22)
+		w.air(b, c.pad[2], 0x34)
+
+		if b < 2 {
+			w.bass(b, c, 0, 0x26)
+		}
+
+		if b >= 2 {
+			w.bellLine(b, c.arp, 2, 0x2A)
+		}
+
+		if b >= 4 {
+			w.voxStab(b, 8, upOctave(c.pad[0]), 0x40, arpType(c))
+		}
+	}
+
+	w.fx(7, 0, "C-5", k.riser, 0x40)
+	w.roll(7, 12, 16, 0x16, 0x30)
+
+	return w.p
+}
+
 // reverseUp reverses a phrase and lifts it an octave, so the two chop channels answer each other
 func reverseUp(notes [8]string) (out [8]string) {
 	for i := range notes {
@@ -1003,28 +1036,28 @@ func (w pattern) dropA(lead, fillBar bool) {
 	for b := range rows / song.RowsPerBar {
 		c := barChord(verse, b)
 
-		w.pads(b, c, 0x34)
-		w.choir(b, c, 0x2E)
+		w.pads(b, c, 0x24)
+		w.choir(b, c, 0x1e)
 
 		if b%2 == 1 {
-			w.air(b, c.pad[1], 0x14)
+			w.air(b, c.pad[1], 0x2C)
 		}
 
-		w.bass(b, c, 1, 0x42)
+		w.bass(b, c, 1, 0x34)
 		w.breakBeat(b, 0x40)
 
 		if b >= 4 {
-			w.chops(b, c.arp, 0x30, 0x60, 0x10, chChopL)
-			w.chops(b, reverseUp(c.arp), 0x2C, 0xA0, 0x14, chChopR)
-			w.bellLine(b, c.arp, 2, 0x24)
+			w.chops(b, c.arp, 0x40, 0x60, 0x10, chChopL)
+			w.chops(b, reverseUp(c.arp), 0x3C, 0xA0, 0x14, chChopR)
+			w.bellLine(b, c.arp, 2, 0x1e)
 		}
 
 		if lead && b >= 4 {
-			w.leadLine(b, c.lead, 2, 0x3C)
+			w.leadLine(b, c.lead, 2, 0x26)
 		}
 
 		if b%2 == 0 {
-			w.voxStab(b, 14, c.pad[1], 0x28, arpType(c))
+			w.voxStab(b, 14, upOctave(c.pad[0]), 0x38, arpType(c))
 		}
 
 		if b%4 == 0 {
@@ -1042,22 +1075,22 @@ func (w pattern) dropB(lead, fillBar bool) {
 	for b := range rows / song.RowsPerBar {
 		c := barChord(verse, b)
 
-		w.pads(b, c, 0x38)
-		w.choir(b, c, 0x30)
-		w.bass(b, c, 2, 0x46)
+		w.pads(b, c, 0x26)
+		w.choir(b, c, 0x20)
+		w.bass(b, c, 2, 0x38)
 		w.drums(b, 2)
-		w.chops(b, c.arp, 0x34, 0x60, 0x18, chChopL)
-		w.chops(b, reverseUp(c.arp), 0x2E, 0xA0, 0x1C, chChopR)
+		w.chops(b, c.arp, 0x44, 0x60, 0x18, chChopL)
+		w.chops(b, reverseUp(c.arp), 0x3E, 0xA0, 0x1C, chChopR)
 		w.bellLine(b, c.arp, 2, 0x26)
 
 		if lead {
-			w.leadLine(b, c.lead, 2, 0x40)
+			w.leadLine(b, c.lead, 2, 0x2a)
 		} else if b >= 4 {
-			w.leadLine(b, c.lead, 2, 0x36)
+			w.leadLine(b, c.lead, 2, 0x22)
 		}
 
 		if b%2 == 1 {
-			w.voxStab(b, 14, c.pad[2], 0x2C, arpType(c))
+			w.voxStab(b, 14, upOctave(c.pad[0]), 0x3C, arpType(c))
 		}
 
 		if b%4 == 0 {
@@ -1075,20 +1108,20 @@ func (w pattern) dropC(final bool) {
 	for b := range rows / song.RowsPerBar {
 		c := barChord(verse, b)
 
-		w.pads(b, c, 0x3C)
-		w.choir(b, c, 0x34)
-		w.air(b, c.pad[1], 0x18)
-		w.bass(b, c, 2, 0x4A)
+		w.pads(b, c, 0x28)
+		w.choir(b, c, 0x22)
+		w.air(b, c.pad[1], 0x30)
+		w.bass(b, c, 2, 0x3c)
 		w.breakBeat(b, 0x2A)
 		w.drums(b, 3)
-		w.chops(b, c.arp, 0x38, 0x60, 0x20, chChopL)
-		w.chops(b, reverseUp(c.arp), 0x32, 0xA0, 0x24, chChopR)
+		w.chops(b, c.arp, 0x48, 0x60, 0x20, chChopL)
+		w.chops(b, reverseUp(c.arp), 0x42, 0xA0, 0x24, chChopR)
 		w.bellLine(b, c.arp, 2, 0x2C)
-		w.leadLine(b, c.lead, 2, 0x44)
+		w.leadLine(b, c.lead, 2, 0x2e)
 
 		if b%2 == 1 {
-			w.voxStab(b, 6, c.pad[2], 0x30, arpType(c))
-			w.voxStab(b, 14, c.pad[1], 0x2A, arpType(c))
+			w.voxStab(b, 6, upOctave(c.pad[0]), 0x40, arpType(c))
+			w.voxStab(b, 14, upOctave(c.pad[0]), 0x3A, arpType(c))
 		}
 
 		w.fx(b, 0, "C-4", w.k.crash, 0x40)
@@ -1108,15 +1141,23 @@ func vinylSample(frames int, seed uint64) []float64 {
 		state: seed,
 	}
 
-	for i := range out {
-		out[i] = r.next()
+	// a periodic rumble, so the loop joins without a click
+	for range 220 {
+		hz := 40 + r.next01()*900
+		cycles := math.Max(1, math.Round(hz*float64(frames)/rate))
+		amp := 0.02 + 0.06*r.next01()
+
+		addWave(out, cycles, amp, r.next01())
 	}
 
-	out = lowpass(out, 0.06)
+	// sparse crackles, kept away from the loop boundary
+	for range 48 {
+		pos := 200 + int(r.next01()*float64(frames-400))
+		amp := 0.25 + 0.55*r.next01()
+		width := 2 + int(r.next01()*8)
 
-	for i := range out {
-		if r.next01() > 0.9985 {
-			out[i] += r.next() * 0.5
+		for j := range width {
+			out[pos+j] += amp * math.Exp(-float64(j)/2)
 		}
 	}
 
@@ -1125,7 +1166,7 @@ func vinylSample(frames int, seed uint64) []float64 {
 
 // voxSample is a breathy formant voice, tuned to C-4
 func voxSample(sec float64, formants [][3]float64, seed uint64) []float64 {
-	const harmonics = 40
+	const harmonics = 15
 
 	n := int(sec * rate)
 	out := make([]float64, n)
@@ -1172,9 +1213,9 @@ func main() {
 
 	s.Timing(speed, tempo)
 
-	pad := padSample(4096, false, 0xA11CE)
-	choir := choirSample(8192)
 	air := airSample(4096, 0xBEEF)
+	pad := brighten(padSample(4096, false, 0xA11CE), air, 0.45)
+	choir := brighten(choirSample(8192), air, 0.40)
 	lead := leadSample(2048)
 	bell := bellSample(1.4)
 	vox := voxSample(1.0, [][3]float64{{700, 380, 1.25}, {1220, 520, 0.85}, {2600, 950, 0.45}}, 0xF00D)
@@ -1194,7 +1235,7 @@ func main() {
 			Name: "detuned pad",
 			WAV: toWAV(pad),
 			Loop: true,
-			Volume: 30,
+			Volume: 11,
 			Pan: 128,
 			Envelope: song.Points(0, 0, 6, 64),
 			Fadeout: 2048,
@@ -1203,7 +1244,7 @@ func main() {
 			Name: "formant choir",
 			WAV: toWAV(choir),
 			Loop: true,
-			Volume: 26,
+			Volume: 8,
 			Pan: 128,
 			Envelope: song.Points(0, 0, 10, 64),
 			Fadeout: 2048,
@@ -1212,7 +1253,7 @@ func main() {
 			Name: "breath air",
 			WAV: toWAV(air),
 			Loop: true,
-			Volume: 10,
+			Volume: 34,
 			Pan: 128,
 			Envelope: song.Points(0, 0, 16, 56),
 			Fadeout: 1024,
@@ -1221,7 +1262,7 @@ func main() {
 			Name: "reed lead",
 			WAV: toWAV(lead),
 			Loop: true,
-			Volume: 34,
+			Volume: 18,
 			Pan: 112,
 			Envelope: song.Points(0, 20, 4, 64, 20, 52),
 			Fadeout: 768,
@@ -1229,20 +1270,20 @@ func main() {
 		bell: s.Instrument(song.Instrument{
 			Name: "glass bell",
 			WAV: toWAV(bell),
-			Volume: 32,
+			Volume: 30,
 			Pan: 160,
 		}),
 		vox: s.Instrument(song.Instrument{
 			Name: "marmelade voice",
 			WAV: toWAV(vox),
-			Volume: 30,
+			Volume: 40,
 			Pan: 148,
 		}),
 		bass: s.Instrument(song.Instrument{
 			Name: "reese bass",
 			WAV: toWAV(bass),
 			Loop: true,
-			Volume: 52,
+			Volume: 36,
 			Pan: 128,
 			Envelope: song.Points(0, 0, 2, 64),
 			Fadeout: 512,
@@ -1250,63 +1291,64 @@ func main() {
 		kick: s.Instrument(song.Instrument{
 			Name: "deep kick",
 			WAV: toWAV(kick),
-			Volume: 58,
+			Volume: 54,
 			Pan: 128,
 		}),
 		snare: s.Instrument(song.Instrument{
 			Name: "break snare",
 			WAV: toWAV(snare),
-			Volume: 46,
+			Volume: 48,
 			Pan: 136,
 		}),
 		hat: s.Instrument(song.Instrument{
 			Name: "tight hat",
 			WAV: toWAV(hat),
-			Volume: 26,
+			Volume: 50,
 			Pan: 168,
 		}),
 		open: s.Instrument(song.Instrument{
 			Name: "open hat",
 			WAV: toWAV(open),
-			Volume: 24,
+			Volume: 48,
 			Pan: 96,
 		}),
 		chop: s.Instrument(song.Instrument{
 			Name: "break chop",
 			WAV: toWAV(chop),
-			Volume: 36,
+			Volume: 46,
 			Pan: 128,
 		}),
 		breakLoop: s.Instrument(song.Instrument{
 			Name: "sampled break",
 			WAV: toWAV(breakBuf),
-			Volume: 40,
+			Volume: 36,
 			Pan: 128,
 		}),
 		crash: s.Instrument(song.Instrument{
 			Name: "metal crash",
 			WAV: toWAV(crash),
-			Volume: 30,
+			Volume: 46,
 			Pan: 128,
 		}),
 		riser: s.Instrument(song.Instrument{
 			Name: "reverse crash",
 			WAV: toWAV(riser),
-			Volume: 30,
+			Volume: 46,
 			Pan: 128,
 		}),
 		boom: s.Instrument(song.Instrument{
 			Name: "sub boom",
 			WAV: toWAV(boom),
-			Volume: 40,
+			Volume: 34,
 			Pan: 128,
 		}),
 		vinyl: s.Instrument(song.Instrument{
 			Name: "vinyl",
 			WAV: toWAV(vinyl),
 			Loop: true,
-			Volume: 4,
+			Volume: 16,
 			Pan: 128,
+			Fadeout: 4096,
 		}),
 	}
 	introP := intro(s, k)
@@ -1339,6 +1381,7 @@ func main() {
 		dropA1.p,
 		dropA2.p,
 		dropB1.p,
+		dropA2.p,
 		breakdown(s, k),
 		build(s, k),
 		dropC1.p,
